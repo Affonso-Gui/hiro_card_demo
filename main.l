@@ -2,6 +2,10 @@
 (load "models/room73b2-foldable-desk-object.l")
 (load "models/arrow-object.l")
 
+(defmethod HIRONXJSK-robot
+  (:reset-pose ()
+    (send self :angle-vector #f(6.30106 -2.04927 -112.055 -73.767 0.513765 -24.8619 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943))))
+
 (hironxjsk-init)
 (setq table (room73b2-foldable-desk))
 (send table :rotate pi/2 :z)
@@ -30,9 +34,13 @@
   (send *hironxjsk* :angle-vector (send *ri* :state :reference-vector))
   (send *irtviewer* :draw-objects))
 
+(defun send-rarm (vec)
+  (send *hironxjsk* :rarm :angle-vector vec)
+  (send *hironxjsk* :angle-vector))
+
 (defun reset-pose (&optional (time 5000) &key wait)
   (prog1
-      (send *hironxjsk* :angle-vector #f(6.30106 -2.04927 -112.055 -73.767 0.513765 -24.8619 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943))
+    (send *hironxjsk* :reset-pose)
     (send-robot time :wait wait)
     (send *irtviewer* :draw-objects)))
 
@@ -55,7 +63,7 @@
 
 (defun pick-card ()
   (send *ri* :hand-width :rhand 20)
-  (send *hironxjsk* :angle-vector #f(20.2752 1.1214 -111.221 -68.4368 -13.0237 -25.2876 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943))
+  (send-rarm #f(20.2752 1.1214 -111.221 -68.4368 -13.0237 -25.2876))
   (send-robot 1000 :wait t)
 
   (send *ri* :hand-width :rhand -2 :time 500)
@@ -66,37 +74,22 @@
   )
 
 (defun place-card (x y)
-  ;; (send-viewer)
-  ;; (send *hironxjsk* :rarm :angle-vector #f(5.2364 16.9588 -129.8 3.33475 -15.0175 -64.9964))
-  ;; (send-robot 1000 :wait t)
-  (let ((reset-pose #f(6.30106 -2.04927 -112.055 -73.767 0.513765 -24.8619 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943))
-        (v0 #f(5.2364 16.9588 -129.8 3.33475 -15.0175 -64.9964 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943))
-        (v1 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector x y 6.151) :rpy #f(1.683 0.029 1.005)) :move-target rhand-end-coords))
-        ;; (v2 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector x y -93.85) :rpy #f(1.683 0.029 0.481)) :move-target rhand-end-coords))
-        (v2 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector x y -93.85) :rpy #f(1.760 -0.011 0.482)) :move-target rhand-end-coords))
-        ;; (v3 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector (+ x 14.636) (+ y 7.742) -117.777) :rpy #f(1.817 -0.089 0.338)) :move-target rhand-end-coords)))
-        (v3 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector (+ x 14.636) (+ y 7.742) -117.777) :rpy (float-vector pi/2 -0.023 0.261)) :move-target rhand-end-coords)))
+  (let ((v0 (send *hironxjsk* :reset-pose))
+        (v1 (send-rarm #f(5.2364 16.9588 -129.8 3.33475 -15.0175 -64.9964)))
+        (v2 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector x y 6.151) :rpy #f(1.683 0.029 1.005)) :move-target rhand-end-coords))
+        (v3 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector x y -93.85) :rpy #f(1.760 -0.011 0.482)) :move-target rhand-end-coords))
+        (v4 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector (+ x 14.636) (+ y 7.742) -117.777) :rpy (float-vector pi/2 -0.023 0.261)) :move-target rhand-end-coords)))
 
     ;; place on table
-    (send *ri* :angle-vector-sequence (list reset-pose v0 v1 v2 v3) (list 750 750 1000 750 750))
-    (unix:usleep (* 3250 1000))
-    ;; (send *ri* :hand-angle-vector :rhand #f(5.06338 -35.0 20.5986 -26.4) 500)
-    ;; (send *ri* :hand-angle-vector :rhand #f(44 -90.5 20.5986 -26.4))
+    (send *ri* :angle-vector-sequence (list v0 v1 v2 v3 v4) (list 750 750 1000 1000 750))
+    (unix:usleep (* 3500 1000))
     (send *ri* :hand-angle-vector :rhand #f(25 -90.5 20.5986 -26.4) 750)
     (send *ri* :wait-interpolation)
-    (unix:usleep (* 250 1000)))
+    (unix:usleep (* 250 1000))
 
-  ;; go back
-  (send *ri* :hand-width :rhand 30 :time 2000)
-  (send *ri* :angle-vector-sequence
-        (list
-         #f(5.2364 16.9588 -129.8 3.33475 -15.0175 -64.9964 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943)
-         #f(6.30106 -2.04927 -112.055 -73.767 0.513765 -24.8619 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943))
-        (list 1250 750))
-  ;; (send *hironxjsk* :rarm :angle-vector #f(5.2364 16.9588 -129.8 3.33475 -15.0175 -64.9964))
-  ;; (send-robot 2000 :wait t)
-  ;; (reset-pose 1500)
-  )
+    ;; go back
+    (send *ri* :hand-width :rhand 30 :time 2000)
+    (send *ri* :angle-vector-sequence (list v1 v0) (list 1250 750))))
 
 (defun pick&place (cards)
   (dolist (card cards)
