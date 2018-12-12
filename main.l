@@ -4,7 +4,7 @@
 
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
-    (send self :angle-vector #f(6.30106 -2.04927 -112.055 -73.767 0.513765 -24.8619 19.2455 -1.896 -95.7045 122.931 12.6211 16.4734 89.9981 0.0 29.9943))))
+    (send self :angle-vector #f(-7.28546 -4.9056 -103.32 -77.7793 11.3808 -16.043 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 89.9981 2.135382e-18 29.9943))))
 
 (hironxjsk-init)
 (setq table (room73b2-foldable-desk))
@@ -63,7 +63,7 @@
 
 (defun pick-card ()
   (send *ri* :hand-width :rhand 20)
-  (send-rarm #f(20.2752 1.1214 -111.221 -68.4368 -13.0237 -25.2876))
+  (send-rarm #f(6.46764 0.99122 -105.688 -73.8493 -2.26606 -15.871))
   (send-robot 1000 :wait t)
 
   (send *ri* :hand-width :rhand -2 :time 500)
@@ -75,7 +75,7 @@
 
 (defun place-card (x y)
   (let ((v0 (send *hironxjsk* :reset-pose))
-        (v1 (send-rarm #f(5.2364 16.9588 -129.8 3.33475 -15.0175 -64.9964)))
+        (v1 (send-rarm #f(-7.89202 -1.84252 -117.883 -49.644 -1.75887 -61.8324)))
         (v2 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector x y 6.151) :rpy #f(1.683 0.029 1.005)) :move-target rhand-end-coords))
         (v3 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector x y -93.85) :rpy #f(1.760 -0.011 0.482)) :move-target rhand-end-coords))
         (v4 (send *hironxjsk* :rarm :inverse-kinematics (make-coords :pos (float-vector (+ x 14.636) (+ y 7.742) -117.777) :rpy (float-vector pi/2 -0.023 0.261)) :move-target rhand-end-coords)))
