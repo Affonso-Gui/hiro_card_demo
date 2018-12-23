@@ -2,6 +2,8 @@
 (load "models/room73b2-foldable-desk-object.l")
 (load "models/arrow-object.l")
 
+(ros::load-ros-manifest "hiro_card_demo")
+
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
     (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 2.135382e-18 29.9943)))
@@ -133,13 +135,42 @@
   (send *ri* :hand-width :rhand 30 :time 1500)
   (send *ri* :angle-vector-sequence (list v1 v2) (list 1000 1500))))
 
+
+;; Demo Function
 (defun pick&place (&rest cards)
   (send *ri* :angle-vector (send* *hironxjsk* :standby (car cards)) 1500)
   (grasp-deck :wait t)
 
   (dotimes (i (length cards))
-    (bench (pick-card))
-    (bench (apply #'place-card (nth i cards)))
+    (pick-card)
+    (apply #'place-card (nth i cards))
     (apply #'go-standby (nth (1+ i) cards))))
+
+
+;; Service Callback
+(defun goal-cb (request)
+  (flet ((get-card (card-msg)
+           ;; switch camera coords to robot coords
+           ;; scratch window: -210~210 x -70~140
+           (list (max 200 (+ (send card-msg :y) 340))
+                 (send card-msg :x)
+                 (plusp (send card-msg :flip)))))
+
+    (let ((cards (mapcar #'get-card (send request :cards)))
+          (response (send request :response)))
+      (apply #'pick&place cards)
+      (send response :success t)
+      response)))
+
+;; Main Loop
+(format t "Reseting Pose ...~%")
+(reset-pose 5000 :wait t)
+(send *ri* :stop-grasp :larm)
+
+(format t "Starting service at /hiro_demo/goal ...~%")
+(ros::advertise-service "hiro_demo/goal" hiro_card_demo::Goal #'goal-cb)
+
+(format t "Press any key to interrupt~%")
+(do-until-key (ros::spin-once))
 
 (format t ";; (pick&place '(380 -60) '(380 -80) '(380 -100 t))~%")
