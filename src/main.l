@@ -4,9 +4,10 @@
 
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
-    (send self :angle-vector #f(-7.28546 -4.9056 -103.32 -77.7793 11.3808 -16.043 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 2.135382e-18 29.9943)))
-  (:standby (x y)
+    (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 2.135382e-18 29.9943)))
+  (:standby (x y &optional flip)
     (send self :reset-pose)
+    (if flip (send self :rarm-wrist-r :joint-angle 163))
     (let* ((mid (midpoint 0.5
                           (send (send *hironxjsk* :rarm-end-coords) :worldpos)
                           (send (send *hironxjsk* :larm-end-coords) :worldpos)))
@@ -53,6 +54,7 @@
 (defun reset-pose (&optional (time 5000) &key wait)
   (prog1
     (send *hironxjsk* :reset-pose)
+    (send *ri* :hand-width :rhand 20 :time time)
     (send-robot time :wait wait)
     (send *irtviewer* :draw-objects)))
 
@@ -86,7 +88,9 @@
   (send *ri* :stop-grasp :larm))
 
 (defun place-card (x y &optional flip)
-  (if flip (setq x (- x 63)))
+  (when flip
+    (send *hironxjsk* :rarm-wrist-r :joint-angle -15.6836)
+    (setq x (- x 63)))
 
   (let ((v1 (progn
               (assert (send *hironxjsk* :rarm :move-end-pos #f(0 -25 -30) :world))
@@ -103,34 +107,31 @@
                                                                           (if flip
                                                                             (- x 7.742)
                                                                             (+ x 7.742))
-                                                                          (- y 14.636) -122.777)
-                                                                    :rpy #f(0.0 -0.023 0.261)))
+                                                                          (- y 14.636) -120.777)
+                                                                    :rpy
+                                                                    (if flip
+                                                                        #f(-0.169 -0.023 0.261)
+                                                                        #f(0.169 -0.067 0.253))))
                   :move-target rhand-end-coords)))
 
-    (when flip
-      (setf (elt v1 5) -40 ;; rarm-wrist-r
-            (elt v2 5) -163
-            (elt v3 5) -163
-            (elt v4 5) -163))
+    (when flip (setf (elt v1 5) 120)) ;; rarm-wrist-r
 
     ;; place on table
     (send *ri* :angle-vector-sequence (list v1 v2 v3 v4) (list 500 750 1000 750))
     (unix:usleep (* 1000 1000))
     (grasp-deck)
-    (unix:usleep (* 1500 1000))
-    (if flip
-      (send *ri* :hand-angle-vector :rhand #f(-20.5986 26.4 -25 90.5) 750)
-      (send *ri* :hand-angle-vector :rhand #f(25 -90.5 20.5986 -26.4) 750))
+    (unix:usleep (* 1250 1000))
+    (send *ri* :hand-angle-vector :rhand #f(25 -90.5 20.5986 -26.4) 750)
     (send *ri* :wait-interpolation)
     (unix:usleep (* 250 1000))))
 
-(defun go-standby (&optional x y)
+(defun go-standby (&optional x y flip)
   (let ((v1 (send *hironxjsk* :rarm :move-end-pos #f(0 0 30)))
         (v2 (if (and x y)
-              (send *hironxjsk* :standby x y)
+              (send *hironxjsk* :standby x y flip)
               (send *hironxjsk* :reset-pose))))
   (send *ri* :hand-width :rhand 30 :time 1500)
-  (send *ri* :angle-vector-sequence (list v1 v2) (list 750 1000))))
+  (send *ri* :angle-vector-sequence (list v1 v2) (list 1000 1500))))
 
 (defun pick&place (&rest cards)
   (send *ri* :angle-vector (send* *hironxjsk* :standby (car cards)) 1500)
@@ -140,3 +141,5 @@
     (bench (pick-card))
     (bench (apply #'place-card (nth i cards)))
     (apply #'go-standby (nth (1+ i) cards))))
+
+(format t ";; (pick&place '(380 -60) '(380 -80) '(380 -100 t))~%")
