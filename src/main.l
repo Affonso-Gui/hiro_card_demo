@@ -81,9 +81,10 @@
 
   ;; grasp card
   (send *ri* :hand-width :rhand 20)
-  (assert (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
+  (assert (send *hironxjsk* :rarm :move-end-pos #f(0 0 -65)))
   (send-robot 1000 :wait t)
 
+  (send *ri* :hand-effort :rhand 100)
   (send *ri* :hand-width :rhand -2 :time 500)
   (unix:sleep 1)
 
@@ -116,6 +117,7 @@
                                                                         #f(0.169 -0.067 0.253))))
                   :move-target rhand-end-coords)))
 
+    (assert (every #'vectorp (list v1 v2 v3 v4)))
     (when flip (setf (elt v1 5) 120)) ;; rarm-wrist-r
 
     ;; place on table
@@ -138,8 +140,9 @@
 
 ;; Demo Function
 (defun pick&place (&rest cards)
-  (send *ri* :angle-vector (send* *hironxjsk* :standby (car cards)) 1500)
-  (grasp-deck :wait t)
+  (when cards
+    (send *ri* :angle-vector (send* *hironxjsk* :standby (car cards)) 1500)
+    (grasp-deck :wait t))
 
   (dotimes (i (length cards))
     (pick-card)
@@ -147,8 +150,13 @@
     (apply #'go-standby (nth (1+ i) cards))))
 
 
+(defun assert (form &rest msg)
+  (unless form (reset)))
+
 ;; Service Callback
 (defun goal-cb (request)
+  ;; (print-ros-msg request)
+  (print-ros-msg (send request :cards))
   (flet ((get-card (card-msg)
            ;; switch camera coords to robot coords
            ;; scratch window: -210~210 x -70~140
@@ -158,8 +166,11 @@
 
     (let ((cards (mapcar #'get-card (send request :cards)))
           (response (send request :response)))
-      (apply #'pick&place cards)
-      (send response :success t)
+      (let ((res (catch 0 (apply #'pick&place cards) t)))
+        (unless res
+          (warning-message 1 "Assertation failed!~%")
+          (reset-pose 5000 :wait t))
+        (send response :success res))
       response)))
 
 ;; Main Loop
@@ -170,7 +181,6 @@
 (format t "Starting service at /hiro_demo/goal ...~%")
 (ros::advertise-service "hiro_demo/goal" hiro_card_demo::Goal #'goal-cb)
 
-(format t "Press any key to interrupt~%")
-(do-until-key (ros::spin-once))
+(while t (ros::spin-once))
 
 (format t ";; (pick&place '(380 -60) '(380 -80) '(380 -100 t))~%")
