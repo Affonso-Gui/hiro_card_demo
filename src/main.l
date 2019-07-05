@@ -4,6 +4,8 @@
 
 (ros::load-ros-manifest "hiro_card_demo")
 
+(unix:system (format nil "python ../scripts/stopper.py ~A &" (unix:getpid)))
+
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
     (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 2.135382e-18 29.9943)))
@@ -81,7 +83,7 @@
 
   ;; grasp card
   (send *ri* :hand-width :rhand 20)
-  (assert (send *hironxjsk* :rarm :move-end-pos #f(0 0 -65)))
+  (assert (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
   (send-robot 1000 :wait t)
 
   (send *ri* :hand-effort :rhand 100)
