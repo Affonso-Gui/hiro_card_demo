@@ -20,6 +20,14 @@ class StopSubscriber(object):
                 os.kill(self.pid, signal.SIGHUP)
                 return
 
+    def spin(self):
+        while True:
+            try:
+                os.kill(self.pid, 0)
+            except OSError:
+                print "...Closing"
+                exit()
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("pid", type=int, help="euslisp process id")
@@ -29,7 +37,7 @@ def main():
 
     StopInstance = StopSubscriber(args.pid)
     print "Running..."
-    rospy.spin()
+    StopInstance.spin()
 
 if __name__ == '__main__':
     main()
