@@ -4,7 +4,7 @@
 
 (ros::load-ros-manifest "hiro_card_demo")
 
-(unix:system (format nil "python ../scripts/stopper.py ~A &" (unix:getpid)))
+(unix:system (format nil "python ../scripts/stopper.py ~A --controller ~A &" (unix:getpid) "fullbody_controller/follow_joint_trajectory_action"))
 
 (defmethod HIRONXJSK-robot
   (:reset-pose ()

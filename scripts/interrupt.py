@@ -58,6 +58,11 @@ class InterruptAction(object):
         try:
             comm = self.interrupt_commands.pop()
             goal_msg = self.goal_type(goal=self.resume_goal(comm))
+
+            print ""
+            print "Resumed Action:"
+            print goal_msg.goal
+
             self.goal_pub.publish(goal_msg)
             self.interrupt_commands = []
         except IndexError:
@@ -69,6 +74,11 @@ class InterruptAction(object):
             comm = self.active_commands[-1]
             self.cancel_pub.publish(GoalID(stamp=rospy.get_rostime(), id=comm.id))
             self.interrupt_commands.append(comm)
+
+            print ""
+            print "Interrupted Action:"
+            print comm.goal
+
         except IndexError:
             rospy.logerr('No commands to interrupt')
             pass
@@ -86,10 +96,20 @@ class InterruptController(InterruptAction):
 
     def resume_goal(self, comm):
         goal = comm.goal
-        tm_offset = comm.feedback.actual.time_from_start
 
         # Reset time stamp
         goal.trajectory.header.stamp = rospy.Duration(0)
+
+        try:
+            tm_offset = comm.feedback.actual.time_from_start
+        except AttributeError:
+            print ""
+            print "No feedback received. Resuming original goal..."
+            return goal
+
+        print ""
+        print "Interrupted time:"
+        print tm_offset.to_sec()
 
         # Remove completed steps
         goal.trajectory.points = [x for x in goal.trajectory.points
@@ -98,7 +118,7 @@ class InterruptController(InterruptAction):
         # Shift based on time offset
         for p in goal.trajectory.points:
             p.time_from_start -= tm_offset
-
+            p.time_from_start += rospy.Duration(1)
         return goal
 
 
