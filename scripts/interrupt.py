@@ -1,0 +1,144 @@
+import rospy
+from actionlib_msgs.msg import GoalID
+from std_msgs.msg import Empty
+
+class ActionCommand(object):
+    def __init__(self, goal_msg):
+        self.id = goal_msg.goal_id.id
+        self.goal = goal_msg.goal
+        self.feedback = None
+
+    def update(self, feedback_msg):
+        self.feedback = feedback_msg.feedback
+
+class InterruptAction(object):
+    def __init__(self, ns, ActionSpec):
+        self.active_commands = []
+        self.interrupt_commands = []
+
+        if not ns.endswith('/'):
+            ns += '/'
+
+        inst = ActionSpec()
+        self.goal_type = type(inst.action_goal)
+
+        self.goal_sub = rospy.Subscriber(
+            ns + 'goal', type(inst.action_goal), self._goal_cb)
+        self.feedback_sub = rospy.Subscriber(
+            ns + 'feedback', type(inst.action_feedback), self._feedback_cb)
+        self.result_sub = rospy.Subscriber(
+            ns + 'result', type(inst.action_result), self._result_cb)
+        self.interrupt_sub = rospy.Subscriber(
+            ns + 'interrupt', Empty, self.interrupt)
+        self.resume_sub = rospy.Subscriber(
+            ns + 'resume', Empty, self.resume)
+        self.goal_pub = rospy.Publisher(
+            ns + 'goal', self.goal_type, queue_size=1)
+        self.cancel_pub = rospy.Publisher(
+            ns + 'cancel', GoalID, queue_size=100)
+        print "Ready to take orders from %s" % ns
+
+    def _goal_cb(self, msg):
+        self.active_commands.append(ActionCommand(msg))
+
+    def _feedback_cb(self, msg):
+        for comm in self.active_commands:
+            if comm.id == msg.status.goal_id.id:
+                comm.update(msg)
+                break
+
+    def _result_cb(self, msg):
+        self.active_commands = [x for x in self.active_commands
+                                if x.id != msg.status.goal_id.id]
+
+    def resume(self, msg=None):
+        try:
+            comm = self.interrupt_commands.pop()
+            goal_msg = self.goal_type(goal = self.resume_goal(comm))
+            self.goal_pub.publish(goal_msg)
+            self.interrupt_commands = []
+        except IndexError:
+            rospy.logerr('No commands to resume')
+            pass
+
+    def interrupt(self, msg=None):
+        try:
+            comm = self.active_commands[-1]
+            self.cancel_pub.publish(GoalID(stamp=rospy.get_rostime(), id=comm.id))
+            self.interrupt_commands.append(comm)
+        except IndexError:
+            rospy.logerr('No commands to interrupt')
+            pass
+
+    def resume_goal(self, comm):
+        """Return goal to be resumed from previous ActionCommand instance."""
+        # Overwrite in child classes
+        return comm.goal
+
+
+import control_msgs.msg
+class InterruptController(InterruptAction):
+    def __init__(self, ns):
+        super(InterruptController, self).__init__(
+            ns, control_msgs.msg.FollowJointTrajectoryAction)
+
+    def resume_goal(self, comm):
+        goal = comm.goal
+        tm_offset = comm.feedback.actual.time_from_start
+
+        # Reset time stamp
+        goal.trajectory.header.stamp = rospy.Duration(0)
+
+        # Remove completed steps
+        goal.trajectory.points = [x for x in goal.trajectory.points
+                                  if x.time_from_start > tm_offset]
+
+        # Shift based on time offset
+        for p in goal.trajectory.points:
+            p.time_from_start -= tm_offset
+
+        return goal
+
+
+class InterruptAllControllers(object):
+    def __init__(self, ns, *controllers):
+        self.controllers = [InterruptController(x) for x in controllers]
+
+        if not ns.endswith('/'):
+            ns += '/'
+
+        self.interrupt_sub = rospy.Subscriber(
+            ns + 'interrupt', Empty, self.interrupt_all)
+        self.resume_sub = rospy.Subscriber(
+            ns + 'resume', Empty, self.resume_all)
+
+    def interrupt_all(self, msg):
+        for c in self.controllers:
+            c.interrupt()
+
+    def resume_all(self,msg):
+        for c in self.controllers:
+            c.resume()
+
+
+# def main():
+#     import actionlib_tutorials.msg as at
+#     rospy.init_node("interrupt",anonymous=True)
+#     InterruptInstance = InterruptAction('fibonacci',
+#                                         at.FibonacciAction)
+#     rospy.spin()
+
+def main():
+    rospy.init_node("interrupt",anonymous=True)
+    # InterruptInstance = InterruptController('r_arm_controller/follow_joint_trajectory')
+    InterruptInstance = InterruptAllControllers(
+        'fullbody_controller',
+        'l_arm_controller/follow_joint_trajectory',
+        'head_traj_controller/follow_joint_trajectory',
+        'r_arm_controller/follow_joint_trajectory',
+        'torso_controller/follow_joint_trajectory')
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()
