@@ -1,6 +1,8 @@
 import rospy
 from actionlib_msgs.msg import GoalID
+from control_msgs.msg import FollowJointTrajectoryAction
 from std_msgs.msg import Empty
+
 
 class ActionCommand(object):
     def __init__(self, goal_msg):
@@ -10,6 +12,7 @@ class ActionCommand(object):
 
     def update(self, feedback_msg):
         self.feedback = feedback_msg.feedback
+
 
 class InterruptAction(object):
     def __init__(self, ns, ActionSpec):
@@ -36,7 +39,7 @@ class InterruptAction(object):
             ns + 'goal', self.goal_type, queue_size=1)
         self.cancel_pub = rospy.Publisher(
             ns + 'cancel', GoalID, queue_size=100)
-        print "Ready to take orders from %s" % ns
+        print("Ready to take orders from {}".format(ns))
 
     def _goal_cb(self, msg):
         self.active_commands.append(ActionCommand(msg))
@@ -54,7 +57,7 @@ class InterruptAction(object):
     def resume(self, msg=None):
         try:
             comm = self.interrupt_commands.pop()
-            goal_msg = self.goal_type(goal = self.resume_goal(comm))
+            goal_msg = self.goal_type(goal=self.resume_goal(comm))
             self.goal_pub.publish(goal_msg)
             self.interrupt_commands = []
         except IndexError:
@@ -76,11 +79,10 @@ class InterruptAction(object):
         return comm.goal
 
 
-import control_msgs.msg
 class InterruptController(InterruptAction):
     def __init__(self, ns):
         super(InterruptController, self).__init__(
-            ns, control_msgs.msg.FollowJointTrajectoryAction)
+            ns, FollowJointTrajectoryAction)
 
     def resume_goal(self, comm):
         goal = comm.goal
@@ -116,29 +118,26 @@ class InterruptAllControllers(object):
         for c in self.controllers:
             c.interrupt()
 
-    def resume_all(self,msg):
+    def resume_all(self, msg):
         for c in self.controllers:
             c.resume()
 
 
-# def main():
-#     import actionlib_tutorials.msg as at
-#     rospy.init_node("interrupt",anonymous=True)
-#     InterruptInstance = InterruptAction('fibonacci',
-#                                         at.FibonacciAction)
-#     rospy.spin()
+if __name__ == '__main__':
+    rospy.init_node("interrupt", anonymous=True)
 
-def main():
-    rospy.init_node("interrupt",anonymous=True)
+    ###  actionlib_tutorials/Fibonacci
+    # InterruptInstance = InterruptController('fibonacci', actionlib_tutorials.msg.FibonacciAction)
+
+    ###  Single controller
     # InterruptInstance = InterruptController('r_arm_controller/follow_joint_trajectory')
+
+    ###  Multiple controllers
     InterruptInstance = InterruptAllControllers(
         'fullbody_controller',
         'l_arm_controller/follow_joint_trajectory',
         'head_traj_controller/follow_joint_trajectory',
         'r_arm_controller/follow_joint_trajectory',
         'torso_controller/follow_joint_trajectory')
+
     rospy.spin()
-
-
-if __name__ == '__main__':
-    main()
