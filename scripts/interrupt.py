@@ -3,7 +3,6 @@ from actionlib_msgs.msg import GoalID
 from control_msgs.msg import FollowJointTrajectoryAction
 from std_msgs.msg import Empty
 
-
 class ActionCommand(object):
     def __init__(self, goal_msg):
         self.id = goal_msg.goal_id.id
@@ -39,7 +38,7 @@ class InterruptAction(object):
             ns + 'goal', self.goal_type, queue_size=1)
         self.cancel_pub = rospy.Publisher(
             ns + 'cancel', GoalID, queue_size=100)
-        print("Ready to take orders from {}".format(ns))
+        rospy.loginfo("Ready to take orders from {}".format(ns))
 
     def _goal_cb(self, msg):
         self.active_commands.append(ActionCommand(msg))
@@ -59,9 +58,7 @@ class InterruptAction(object):
             comm = self.interrupt_commands.pop()
             goal_msg = self.goal_type(goal=self.resume_goal(comm))
 
-            print ""
-            print "Resumed Action:"
-            print goal_msg.goal
+            rospy.logdebug("Resumed Action: %s" % goal_msg.goal)
 
             self.goal_pub.publish(goal_msg)
             self.interrupt_commands = []
@@ -75,9 +72,7 @@ class InterruptAction(object):
             self.cancel_pub.publish(GoalID(stamp=rospy.get_rostime(), id=comm.id))
             self.interrupt_commands.append(comm)
 
-            print ""
-            print "Interrupted Action:"
-            print comm.goal
+            rospy.logdebug("Interrupted Action: %s" % comm.goal)
 
         except IndexError:
             rospy.logerr('No commands to interrupt')
@@ -103,13 +98,11 @@ class InterruptController(InterruptAction):
         try:
             tm_offset = comm.feedback.actual.time_from_start
         except AttributeError:
-            print ""
-            print "No feedback received. Resuming original goal..."
+            rospy.logdebug("No feedback received.")
+            rospy.logdebug("Resuming original goal...")
             return goal
 
-        print ""
-        print "Interrupted time:"
-        print tm_offset.to_sec()
+        rospy.logdebug("Interrupted time: %s" % tm_offset.to_sec())
 
         # Remove completed steps
         goal.trajectory.points = [x for x in goal.trajectory.points
@@ -118,7 +111,10 @@ class InterruptController(InterruptAction):
         # Shift based on time offset
         for p in goal.trajectory.points:
             p.time_from_start -= tm_offset
-            p.time_from_start += rospy.Duration(1)
+
+        # Add security offset when resuming
+        goal.trajectory.points[0].time_from_start += rospy.Duration(1)
+
         return goal
 
 
