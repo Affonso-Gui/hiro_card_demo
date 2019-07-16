@@ -56,27 +56,35 @@ class InterruptAction(object):
     def resume(self, msg=None):
         try:
             comm = self.interrupt_commands.pop()
-            goal_msg = self.goal_type(goal=self.resume_goal(comm))
+            self.interrupt_commands = []
+            goal = self.resume_goal(comm)
+            if not goal.trajectory.points:
+                return
+            goal_msg = self.goal_type(goal=goal)
 
-            rospy.logdebug("Resumed Action: %s" % goal_msg.goal)
+            tm = rospy.get_rostime()
+            id = str(tm) + '_' + rospy.get_name()
+            goal_msg.header.seq = 1
+            goal_msg.header.stamp = tm
+            goal_msg.goal_id = GoalID(id=id)
+            goal_msg.goal.trajectory.header.stamp = tm
+
+            rospy.logdebug("Resumed Action:\n%s" % goal_msg.goal)
 
             self.goal_pub.publish(goal_msg)
-            self.interrupt_commands = []
         except IndexError:
-            rospy.logerr('No commands to resume')
-            pass
+            rospy.logwarn('No commands to resume')
 
     def interrupt(self, msg=None):
         try:
             comm = self.active_commands[-1]
-            self.cancel_pub.publish(GoalID(stamp=rospy.get_rostime(), id=comm.id))
+            # self.cancel_pub.publish(GoalID(stamp=rospy.get_rostime(), id=comm.id))
+            self.cancel_pub.publish(GoalID())
             self.interrupt_commands.append(comm)
-
-            rospy.logdebug("Interrupted Action: %s" % comm.goal)
+            rospy.logdebug("Interrupted Action:\n%s" % comm.goal)
 
         except IndexError:
-            rospy.logerr('No commands to interrupt')
-            pass
+            rospy.logwarn('No commands to interrupt')
 
     def resume_goal(self, comm):
         """Return goal to be resumed from previous ActionCommand instance."""
@@ -98,8 +106,8 @@ class InterruptController(InterruptAction):
         try:
             tm_offset = comm.feedback.actual.time_from_start
         except AttributeError:
-            rospy.logdebug("No feedback received.")
-            rospy.logdebug("Resuming original goal...")
+            rospy.loginfo("No feedback received.")
+            rospy.loginfo("Resuming original goal...")
             return goal
 
         rospy.logdebug("Interrupted time: %s" % tm_offset.to_sec())
@@ -110,10 +118,7 @@ class InterruptController(InterruptAction):
 
         # Shift based on time offset
         for p in goal.trajectory.points:
-            p.time_from_start -= tm_offset
-
-        # Add security offset when resuming
-        goal.trajectory.points[0].time_from_start += rospy.Duration(1)
+            p.time_from_start -= tm_offset + rospy.Duration(1)
 
         return goal
 

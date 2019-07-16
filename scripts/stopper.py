@@ -40,7 +40,7 @@ class StopSubscriber(object):
             try:
                 os.kill(self.pid, 0)
             except OSError:
-                rospy.logwarning("...Closing")
+                rospy.logwarn("...Closing")
                 exit()
 
 def main():

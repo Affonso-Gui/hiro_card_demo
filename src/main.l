@@ -165,14 +165,13 @@
            (list (max 200 (+ (send card-msg :y) 340))
                  (send card-msg :x)
                  (plusp (send card-msg :flip)))))
-
-    (let ((cards (mapcar #'get-card (send request :cards)))
-          (response (send request :response)))
-      (let ((res (catch 0 (apply #'pick&place cards) t)))
-        (unless res
-          (warning-message 1 "Assertation failed!~%")
-          (reset-pose 5000 :wait t))
-        (send response :success res))
+    (let* ((response (send request :response))
+           (cards (mapcar #'get-card (send request :cards)))
+           (res (catch 0 (apply #'pick&place cards) t)))
+      (unless res
+        (warning-message 1 "Assertation failed!~%")
+        (reset-pose 5000 :wait t))
+      (send response :success res)
       response)))
 
 ;; Main Loop
