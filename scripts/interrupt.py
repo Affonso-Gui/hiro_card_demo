@@ -57,7 +57,6 @@ class InterruptAction(object):
         rospy.logdebug("Resume request received")
         try:
             comm = self.interrupt_commands.pop()
-            rospy.logdebug("Comm: \n%s" % comm)
             self.interrupt_commands = []
             goal_msg = self.goal_type(goal=self.resume_goal(comm))
 
@@ -71,6 +70,8 @@ class InterruptAction(object):
             rospy.logdebug("Resumed Action:\n%s" % goal_msg.goal)
 
             self.goal_pub.publish(goal_msg)
+            rospy.sleep(1)  # Wait for time offset
+
         except IndexError:
             rospy.logwarn('No commands to resume')
 
@@ -81,6 +82,8 @@ class InterruptAction(object):
             self.cancel_pub.publish(GoalID())
             self.interrupt_commands.append(comm)
             rospy.logdebug("Interrupted Action:\n%s" % comm.goal)
+            rospy.logdebug("Interrupted Time: %s" %
+                           comm.feedback.actual.time_from_start.to_sec())
 
         except IndexError:
             rospy.logwarn('No commands to interrupt')
@@ -109,8 +112,6 @@ class InterruptController(InterruptAction):
             rospy.loginfo("Resuming original goal...")
             return goal
 
-        rospy.logdebug("Interrupted time: %s" % tm_offset.to_sec())
-
         # Remove completed steps
         last_point = goal.trajectory.points[-1]
         goal.trajectory.points = [x for x in goal.trajectory.points
@@ -123,7 +124,7 @@ class InterruptController(InterruptAction):
 
         # Shift based on time offset
         for p in goal.trajectory.points:
-            p.time_from_start -= tm_offset + rospy.Duration(1)
+            p.time_from_start += rospy.Duration(1) - tm_offset
 
         return goal
 
