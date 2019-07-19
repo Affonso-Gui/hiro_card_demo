@@ -54,13 +54,12 @@ class InterruptAction(object):
                                 if x.id != msg.status.goal_id.id]
 
     def resume(self, msg=None):
+        rospy.logdebug("Resume request received")
         try:
             comm = self.interrupt_commands.pop()
+            rospy.logdebug("Comm: \n%s" % comm)
             self.interrupt_commands = []
-            goal = self.resume_goal(comm)
-            if not goal.trajectory.points:
-                return
-            goal_msg = self.goal_type(goal=goal)
+            goal_msg = self.goal_type(goal=self.resume_goal(comm))
 
             tm = rospy.get_rostime()
             id = str(tm) + '_' + rospy.get_name()
@@ -113,8 +112,14 @@ class InterruptController(InterruptAction):
         rospy.logdebug("Interrupted time: %s" % tm_offset.to_sec())
 
         # Remove completed steps
+        last_point = goal.trajectory.points[-1]
         goal.trajectory.points = [x for x in goal.trajectory.points
                                   if x.time_from_start > tm_offset]
+
+        # Ensure last waypoint
+        if not goal.trajectory.points:
+            last_point.time_from_start = tm_offset
+            goal.trajectory.points = [last_point]
 
         # Shift based on time offset
         for p in goal.trajectory.points:
