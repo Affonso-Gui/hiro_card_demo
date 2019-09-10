@@ -33,17 +33,49 @@
 (send rhand-end-coords :translate #f(0 0 -70))
 (send (send *hironxjsk* :rarm-end-coords) :assoc rhand-end-coords)
 
+;; Time related
+(defvar time-scale 1.0)
+(defconstant time-scale-step 0.1)
+(defmethod hironxjsk-interface
+  (:update-time-scale ()
+   (let ((status (ros::service-call
+                  "fullbody_controller/interrupt"
+                  (instance action_interrupt::InterruptControllerRequest :init))))
+     (send *ri* :stop-motion)
+     (send *ri* :resume-angle-vector status :scale time-scale))))
+(defun incf-time-scale (msg)
+  (if (< time-scale 2.0)
+      (incf time-scale time-scale-step)))
+(defun decf-time-scale (msg)
+  (if (> time-scale 0.5)
+      (decf time-scale time-scale-step)))
+(ros::subscribe "speed_up" std_msgs::Empty #'decf-time-scale)
+(ros::subscribe "slow_down" std_msgs::Empty #'incf-time-scale)
+
+;; Robot motion
+(defun send-robot (time &key wait)
+  (prog1
+      (send *ri* :angle-vector (send *hironxjsk* :angle-vector)
+            (* time time-scale)
+            nil 0 :scale time-scale)
+    (when wait (send *ri* :wait-interpolation))))
+
+(defun send-robot-sequence (avs times &key wait)
+  (prog1
+      (send *ri* :angle-vector-sequence avs
+            (mapcar #'(lambda (val) (* val time-scale)) times)
+            nil 0 :scale time-scale)
+    (when wait (send *ri* :wait-interpolation))))
+
+(defun sleep-time-scale (tm)
+  (unix:usleep (* 1000 time-scale tm)))
+
 ;; Utility function
 (defun irt () (send *irtviewer* :draw-objects))
 
 (defun waist-transform (coords)
   (send (send (send *hironxjsk* :torso-end-coords) :copy-worldcoords)
         :transform coords))
-
-(defun send-robot (time &key wait)
-  (prog1
-      (send *ri* :angle-vector (send *hironxjsk* :angle-vector) time)
-    (when wait (send *ri* :wait-interpolation))))
 
 (defun send-viewer ()
   (send *hironxjsk* :angle-vector (send *ri* :state :angle-vector))
@@ -125,13 +157,13 @@
     (when flip (setf (elt v1 5) 120)) ;; rarm-wrist-r
 
     ;; place on table
-    (send *ri* :angle-vector-sequence (list v1 v2 v3 v4) (list 500 750 1000 750))
-    (unix:usleep (* 1000 1000))
+    (send-robot-sequence (list v1 v2 v3 v4) (list 500 750 1000 750))
+    (sleep-time-scale 1000)
     (grasp-deck)
-    (unix:usleep (* 1250 1000))
+    (sleep-time-scale 1250)
     (send *ri* :hand-angle-vector :rhand #f(25 -90.5 20.5986 -26.4) 750)
     (send *ri* :wait-interpolation)
-    (unix:usleep (* 250 1000))))
+    (sleep-time-scale 250)))
 
 (defun go-standby (&optional x y flip)
   (let ((v1 (send *hironxjsk* :rarm :move-end-pos #f(0 0 30)))
@@ -139,13 +171,14 @@
               (send *hironxjsk* :standby x y flip)
               (send *hironxjsk* :reset-pose))))
   (send *ri* :hand-width :rhand 30 :time 1500)
-  (send *ri* :angle-vector-sequence (list v1 v2) (list 1000 1500))))
+  (send-robot-sequence (list v1 v2) (list 1000 1500))))
 
 
 ;; Demo Function
 (defun pick&place (&rest cards)
   (when cards
-    (send *ri* :angle-vector (send* *hironxjsk* :standby (car cards)) 1500)
+    (send *hironxjsk* :standby (car cards))
+    (send-robot 1500)
     (grasp-deck :wait t))
 
   (dotimes (i (length cards))
