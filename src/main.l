@@ -23,6 +23,8 @@
 (hironxjsk-init)
 (setq table (room73b2-foldable-desk))
 (send table :locate #f(400 0.0 -800.0) :world)
+(load "pacakge://action_interrupt/euslisp/interruption-handler.l")
+(install-interruption-handler *ri*)
 
 (objects (list *hironxjsk* table))
 
