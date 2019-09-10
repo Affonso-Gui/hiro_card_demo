@@ -4,8 +4,6 @@
 
 (ros::load-ros-manifest "hiro_card_demo")
 
-(unix:system (format nil "python ../scripts/stopper.py ~A --controller ~A &" (unix:getpid) "fullbody_controller/follow_joint_trajectory_action"))
-
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
     (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 2.135382e-18 29.9943)))
@@ -23,7 +21,7 @@
 (hironxjsk-init)
 (setq table (room73b2-foldable-desk))
 (send table :locate #f(400 0.0 -800.0) :world)
-(load "pacakge://action_interrupt/euslisp/interruption-handler.l")
+(load "package://action_interrupt/euslisp/interruption-handler.l")
 (install-interruption-handler *ri*)
 
 (objects (list *hironxjsk* table))
@@ -74,7 +72,7 @@
   (send *ri* :hand-width hand width :time (* time time-scale)))
 
 (defun sleep-time-scale (tm)
-  (unix:usleep (* 1000 time-scale tm)))
+  (unix:usleep (truncate (* 1000 time-scale tm))))
 
 ;; Utility function
 (defun irt () (send *irtviewer* :draw-objects))
@@ -183,7 +181,7 @@
 ;; Demo Function
 (defun pick&place (&rest cards)
   (when cards
-    (send *hironxjsk* :standby (car cards))
+    (send* *hironxjsk* :standby (car cards))
     (send-robot 1500)
     (grasp-deck :wait t))
 
