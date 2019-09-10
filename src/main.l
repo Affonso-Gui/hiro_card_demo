@@ -67,6 +67,12 @@
             nil 0 :scale time-scale)
     (when wait (send *ri* :wait-interpolation))))
 
+(defun send-hand (hand av tm)
+  (send *ri* :hand-angle-vector hand av (* tm time-scale)))
+
+(defun send-hand-width (hand width &key time)
+  (send *ri* :hand-width hand width :time (* time time-scale)))
+
 (defun sleep-time-scale (tm)
   (unix:usleep (* 1000 time-scale tm)))
 
@@ -92,37 +98,37 @@
 (defun reset-pose (&optional (time 5000) &key wait)
   (prog1
     (send *hironxjsk* :reset-pose)
-    (send *ri* :hand-width :rhand 20 :time time)
+    (send-hand-width :rhand 20 :time time)
     (send-robot time :wait wait)
     (send *irtviewer* :draw-objects)))
 
 ;; Pick & Place
 (defun grasp-deck (&key wait)
   (send *ri* :hand-effort :lhand #f(3 3 50 3))
-  (send *ri* :hand-angle-vector :lhand #f(-38.9986 -90.4 -45 92.2) 750) ;; grasp deck
-  (if wait (unix:sleep 1)))
+  (send-hand :lhand #f(-38.9986 -90.4 -45 92.2) 750) ;; grasp deck
+  (if wait (sleep-time-scale 1000)))
 
 (defun pick-card ()
   ;; push card
-  (send *ri* :hand-angle-vector :lhand
+  (send-hand :lhand
         (v+ #f(-10 -10 0 0) (send *ri* :hand-angle-vector :lhand)) 750)
   (send *ri* :hand-effort :lhand '(100 100 nil nil))
-  (unix:sleep 1)
+  (sleep-time-scale 1000)
 
   (send *ri* :hand-effort :lhand '(nil nil nil 1))
-  (send *ri* :hand-angle-vector :lhand #f(-55 -11.8 -25 30) 800) ;; push card
-  (unix:usleep (* 750 1000))
+  (send-hand :lhand #f(-55 -11.8 -25 30) 800) ;; push card
+  (sleep-time-scale 750)
 
   (send *ri* :hand-effort :lhand 3)
 
   ;; grasp card
-  (send *ri* :hand-width :rhand 20)
+  (send-hand-width :rhand 20 :time 1000)
   (assert (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
   (send-robot 1000 :wait t)
 
   (send *ri* :hand-effort :rhand 100)
-  (send *ri* :hand-width :rhand -2 :time 500)
-  (unix:sleep 1)
+  (send-hand-width :rhand -2 :time 500)
+  (sleep-time-scale 1000)
 
   (send *ri* :stop-grasp :larm))
 
@@ -161,7 +167,7 @@
     (sleep-time-scale 1000)
     (grasp-deck)
     (sleep-time-scale 1250)
-    (send *ri* :hand-angle-vector :rhand #f(25 -90.5 20.5986 -26.4) 750)
+    (send-hand :rhand #f(25 -90.5 20.5986 -26.4) 750)
     (send *ri* :wait-interpolation)
     (sleep-time-scale 250)))
 
@@ -170,7 +176,7 @@
         (v2 (if (and x y)
               (send *hironxjsk* :standby x y flip)
               (send *hironxjsk* :reset-pose))))
-  (send *ri* :hand-width :rhand 30 :time 1500)
+  (send-hand-width :rhand 30 :time 1500)
   (send-robot-sequence (list v1 v2) (list 1000 1500))))
 
 
