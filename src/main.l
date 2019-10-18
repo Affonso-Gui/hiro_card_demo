@@ -21,15 +21,10 @@
 (hironxjsk-init)
 (setq table (room73b2-foldable-desk))
 (send table :locate #f(400 0.0 -800.0) :world)
-(load "package://action_interrupt/euslisp/interruption-handler.l")
-(install-interruption-handler *ri*)
+(load "package://roseus_resume/euslisp/interruption-handler.l")
+(roseus_resume:install-interruption-handler *ri*)
 
 (objects (list *hironxjsk* table))
-
-;; test
-(install-handler unix::sigcont-received
-  `(lambda-closure ,(gensym) 0 0 (c) (warning-message 2 "CONTINUE~%") (when (plusp *replevel*) (reset *replevel*))))
-
 
 ;; RHAND-END-COORDS
 (setq rhand-end-coords (send (arrow) :newcoords (send (send *hironxjsk* :rarm-end-coords) :copy-worldcoords)))
@@ -38,7 +33,6 @@
 
 ;; Time related
 (defvar time-scale 1.0)
-(defconstant time-scale-step 0.1)
 (defmethod hironxjsk-interface
   (:resume-angle-vector (status &key (scale 1.0) (min-time 1.0))
     (unless (= time-scale 1.0)
@@ -48,36 +42,16 @@
           ;; destructive operation
           (scale-time (send (send s :feedback) :actual :time_from_start))
           (mapcar #'(lambda (p) (scale-time (send p :time_from_start))) (send s :goal :trajectory :points)))))
-
     (send-super :resume-angle-vector status :scale time-scale :min-time time-scale)))
 
-(defun incf-time-scale (msg)
-  (warning-message 1 "Received time-scale request~%")
-  (setq time-scale (min 2.0 (* time-scale 2.0)))
-  (warning-message 2 "time-scale: ~f~%" time-scale))
-(defun decf-time-scale (msg)
-  (warning-message 1 "Received time-scale request~%")
-  (setq time-scale (max 0.5 (* time-scale 0.5)))
-  (warning-message 2 "time-scale: ~f~%" time-scale))
-(ros::subscribe "speed_up" std_msgs::Empty #'decf-time-scale)
-(ros::subscribe "slow_down" std_msgs::Empty #'incf-time-scale)
-
-
-;; (defclass unix::sighup-received :super unix::signal-received)
-;; (unix:install-signal-handler unix::sighup unix::sighup-received)
-;; (install-handler unix::sighup-received 'incf-time-scale)
-
-(defun hiro-demo-interruption (c)
-  (warning-message 1 "STOP~%")
-  (let ((status (ros::service-call
-                 "fullbody_controller/interrupt"
-                 (instance action_interrupt::InterruptControllerRequest :init))))
-    (send *ri* :interrupt-angle-vector)
-    (let* ((*replevel* (1+ *replevel*))
-           (*reptype* "B"))
-      (catch *replevel* (while t (ros::spin-once))))
-    (send *ri* :resume-angle-vector status)))
-(install-handler interruption-event 'hiro-demo-interruption)
+(defparameter intervention-instance
+  (roseus_resume:register-callable-intervention
+   (:set-time-scale (msg) std_msgs::Float32
+     (let ((action-status (send *ri* :get-action-status))
+           (val (send msg :data)))
+       (setq time-scale (min (max 0.5 val) 2.0))
+       (send *ri* :cancel-angle-vector)
+       (send *ri* :resume-angle-vector action-status)))))
 
 ;; Robot motion
 (defun send-robot (time &key wait)
@@ -193,7 +167,7 @@
     (send-robot-sequence (list v1 v2 v3 v4) (list 500 750 1000 750))
     (sleep-time-scale 1000)
     (grasp-deck)
-    (sleep-time-scale 1500)
+    (sleep-time-scale 1750)
     (send-hand :rhand #f(25 -90.5 20.5986 -26.4) 750)
     (send *ri* :wait-interpolation)
     (sleep-time-scale 250)))
