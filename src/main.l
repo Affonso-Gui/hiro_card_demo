@@ -33,15 +33,17 @@
 
 ;; Time related
 (defvar time-scale 1.0)
+(defvar prev-time-scale time-scale)
 (defmethod hironxjsk-interface
   (:resume-angle-vector (status &key (scale 1.0) (min-time 1.0))
-    (unless (= time-scale 1.0)
-      (flet ((scale-time (ros-time)
-               (send ros-time :from-sec (* (send ros-time :to-sec) time-scale))))
-        (dolist (s (send status :status))
-          ;; destructive operation
-          (scale-time (send (send s :feedback) :actual :time_from_start))
-          (mapcar #'(lambda (p) (scale-time (send p :time_from_start))) (send s :goal :trajectory :points)))))
+    (let ((time-factor (/ time-scale prev-time-scale)))
+      (unless (= time-factor 1.0)
+        (flet ((scale-time (ros-time)
+                 (send ros-time :from-sec (* (send ros-time :to-sec) time-factor))))
+          (dolist (s (send status :status))
+            ;; destructive operation
+            (scale-time (send (send s :feedback) :actual :time_from_start))
+            (mapcar #'(lambda (p) (scale-time (send p :time_from_start))) (send s :goal :trajectory :points))))))
     (send-super :resume-angle-vector status :scale time-scale :min-time time-scale)))
 
 (defparameter intervention-instance
@@ -49,7 +51,8 @@
    (:set-time-scale (msg) std_msgs::Float32
      (let ((action-status (send *ri* :get-action-status))
            (val (send msg :data)))
-       (setq time-scale (min (max 0.5 val) 2.0))
+       (setq prev-time-scale time-scale
+             time-scale (min (max 0.75 val) 2.0))
        (send *ri* :cancel-angle-vector)
        (send *ri* :resume-angle-vector action-status)))))
 
