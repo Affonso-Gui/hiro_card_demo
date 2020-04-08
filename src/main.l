@@ -162,15 +162,20 @@
 
 ;; Demo Function
 (defun pick&place (&rest cards)
-  (when cards
-    (send* *hironxjsk* :standby (car cards))
-    (send-robot 1500)
-    (grasp-deck :wait t))
+  (flet ((fix-card-pos (x y &optional flip)
+           ;; switch camera coords to robot coords
+           ;; scratch window: -210~210 x -70~140
+           (list (max 200 (+ y 340)) x flip)))
+    (when cards
+      (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
+      (send* *hironxjsk* :standby (car cards))
+      (send-robot 1500)
+      (grasp-deck :wait t))
 
-  (dotimes (i (length cards))
-    (pick-card)
-    (apply #'place-card (nth i cards))
-    (apply #'go-standby (nth (1+ i) cards))))
+    (dotimes (i (length cards))
+      (pick-card)
+      (apply #'place-card (nth i cards))
+      (apply #'go-standby (nth (1+ i) cards)))))
 
 
 (defun assert (form &rest msg)
@@ -183,10 +188,8 @@
   ;; (print-ros-msg request)
   (print-ros-msg (send request :cards))
   (flet ((get-card (card-msg)
-           ;; switch camera coords to robot coords
-           ;; scratch window: -210~210 x -70~140
-           (list (max 200 (+ (send card-msg :y) 340))
-                 (send card-msg :x)
+           (list (send card-msg :x)
+                 (send card-msg :y)
                  (plusp (send card-msg :flip)))))
     (let* ((response (send request :response))
            (cards (mapcar #'get-card (send request :cards)))
@@ -207,4 +210,4 @@
 
 (while t (ros::spin-once))
 
-(format t ";; (pick&place '(380 -60) '(380 -80) '(380 -100 t))~%")
+(format t ";; (pick&place '(-60 40) '(-80 40) '(-100 40 t))~%")
