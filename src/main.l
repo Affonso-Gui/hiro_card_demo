@@ -159,9 +159,7 @@
   (send-hand-width :rhand 30 :time 1500)
   (send-robot-sequence (list v1 v2) (list 1000 1500))))
 
-
-;; Demo Function
-(defun pick&place (&rest cards)
+(defun _pick&place (&rest cards)
   (flet ((fix-card-pos (x y &optional flip)
            ;; switch camera coords to robot coords
            ;; scratch window: -210~210 x -70~140
@@ -178,6 +176,12 @@
       (apply #'go-standby (nth (1+ i) cards)))))
 
 
+;; Demo Function
+(defun pick&place (&rest cards)
+  (let ((res (catch 0 (apply #'_pick&place cards) t)))
+    (unless res (reset-pose 5000 :wait t))
+    res))
+
 (defun assert (form &rest msg)
   (unless form
     (warning-message 1 "Assertation failed!~%")
@@ -193,10 +197,7 @@
                  (plusp (send card-msg :flip)))))
     (let* ((response (send request :response))
            (cards (mapcar #'get-card (send request :cards)))
-           (res (catch 0 (apply #'pick&place cards) t)))
-      (unless res
-        (warning-message 1 "Assertation failed!~%")
-        (reset-pose 5000 :wait t))
+           (res (apply #'pick&place cards)))
       (send response :success res)
       response)))
 
