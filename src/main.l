@@ -207,7 +207,8 @@
 
 (format t "Starting service at /hiro_demo/goal ...~%")
 (ros::advertise-service "hiro_demo/goal" hiro_card_demo::Goal #'goal-cb)
+(format t "Press enter to return to the prompt~%")
 
-(while t (ros::spin-once))
+(do-until-key (ros::spin-once))
 
 (format t ";; (pick&place '(-60 40) '(-80 40) '(-100 40 t))~%")
