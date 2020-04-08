@@ -2,8 +2,6 @@
 (load "models/room73b2-foldable-desk-object.l")
 (load "models/arrow-object.l")
 
-(ros::load-ros-manifest "hiro_card_demo")
-
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
     (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 2.135382e-18 29.9943)))
@@ -201,30 +199,10 @@
     (unless res (reset-pose 5000 :wait t))
     res))
 
-;; Service Callback
-(defun goal-cb (request)
-  ;; (print-ros-msg request)
-  (print-ros-msg (send request :cards))
-  (flet ((get-card (card-msg)
-           (list (send card-msg :x)
-                 (send card-msg :y)
-                 (plusp (send card-msg :flip)))))
-    (let* ((response (send request :response))
-           (cards (mapcar #'get-card (send request :cards)))
-           (res (apply #'pick&place cards)))
-      (send response :success res)
-      response)))
-
 ;; Main Loop
 (format t "Reseting Pose ...~%")
 (reset-pose 5000 :wait t)
 (send *ri* :stop-grasp :larm)
 
-(format t "Starting service at /hiro_demo/goal ...~%")
-(ros::advertise-service "hiro_demo/goal" hiro_card_demo::Goal #'goal-cb)
-(format t "Press enter to return to the prompt~%")
-
-(do-until-key (ros::spin-once))
-
-(format t ";; (pick&place '(-60 40) '(-80 40) '(-100 40 t))~%")
+(format t ";; (pick&place '(40 40) '(-30 40) '(-100 40 t))~%")
 (format t ";; (clear-table)~%")
