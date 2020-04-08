@@ -1,4 +1,5 @@
 <launch>
   <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+  <include file="$(find roseus_resume)/launch/start_monitoring.launch"/>
   <node name="scratch_server" type="scratch-server.l" pkg="hiro_card_demo"/>
 </launch>
