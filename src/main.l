@@ -18,11 +18,14 @@
       (assert-reset (send *hironxjsk* :rarm :move-end-pos diff :world))
       (send *hironxjsk* :larm :move-end-pos diff :world))))
 
-(hironxjsk-init)
 (setq table (room73b2-foldable-desk))
 (send table :locate #f(400 0.0 -800.0) :world)
-
-(objects (list *hironxjsk* table))
+(setq deck (make-cube 100 60 26))
+(send deck :set-color :red)
+(hironxjsk-init :objects (list table))
+(send deck :locate (send (send *hironxjsk* :larm-end-coords) :worldpos))
+(send (send *hironxjsk* :larm-end-coords) :assoc deck)
+(objects (list *hironxjsk* table deck))
 
 ;; RHAND-END-COORDS
 (setq rhand-end-coords (send (arrow) :newcoords (send (send *hironxjsk* :rarm-end-coords) :copy-worldcoords)))
@@ -38,14 +41,16 @@
       (send *ri* :angle-vector (send *hironxjsk* :angle-vector)
             (* time time-scale)
             nil 0 :scale time-scale :min-time time-scale)
-    (when wait (send *ri* :wait-interpolation))))
+    (when wait (send *ri* :wait-interpolation))
+    (when (send *ri* :simulation-modep) (irt))))
 
 (defun send-robot-sequence (avs times &key wait)
   (prog1
       (send *ri* :angle-vector-sequence avs
             (mapcar #'(lambda (val) (* val time-scale)) times)
             nil 0 :scale time-scale :min-time time-scale)
-    (when wait (send *ri* :wait-interpolation))))
+    (when wait (send *ri* :wait-interpolation))
+    (when (send *ri* :simulation-modep) (irt))))
 
 (defun send-hand (hand av tm)
   (send *ri* :hand-angle-vector hand av (* tm time-scale)))
@@ -154,7 +159,16 @@
     (sleep-time-scale 1750)
     (send-hand :rhand #f(25 -90.5 20.5986 -26.4) 750)
     (send *ri* :wait-interpolation)
+    (let ((card-obj (make-cube 100 60 1)))
+      (send card-obj :set-color (if flip :white :red))
+      (send card-obj :locate (float-vector (elt (send rhand-end-coords :worldpos) 0)
+                                           (elt (send rhand-end-coords :worldpos) 1)
+                                           -100))
+      (objects card-obj))
     (sleep-time-scale 250)))
+
+(defun clear-table ()
+  (objects (list *hironxjsk* table deck)))
 
 (defun go-standby (&optional x y flip)
   (let ((v1 (send *hironxjsk* :rarm :move-end-pos #f(0 0 30)))
@@ -213,3 +227,4 @@
 (do-until-key (ros::spin-once))
 
 (format t ";; (pick&place '(-60 40) '(-80 40) '(-100 40 t))~%")
+(format t ";; (clear-table)~%")
