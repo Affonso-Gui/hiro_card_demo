@@ -1,6 +1,8 @@
 ## Hiro Card Demo
 
-![vlcsnap-2020-04-08-22h13m08s979](https://user-images.githubusercontent.com/20625381/78788917-678e3280-79e7-11ea-97c1-b84a2465a2ca.jpg)
+<p align="center">
+  <img height="300" src="https://user-images.githubusercontent.com/20625381/78788917-678e3280-79e7-11ea-97c1-b84a2465a2ca.jpg">
+</p>
 
 #### Quick Install:
 ```shell
