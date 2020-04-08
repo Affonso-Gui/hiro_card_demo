@@ -15,7 +15,7 @@
                           (send (send *hironxjsk* :larm-end-coords) :worldpos)))
            (end (v+ (float-vector x y) #f(-70 70)))
            (diff (concatenate float-vector (v- end (subseq mid 0 2)) #f(0))))
-      (assert (send *hironxjsk* :rarm :move-end-pos diff :world))
+      (assert-reset (send *hironxjsk* :rarm :move-end-pos diff :world))
       (send *hironxjsk* :larm :move-end-pos diff :world))))
 
 (hironxjsk-init)
@@ -82,6 +82,11 @@
     (send-robot time :wait wait)
     (send *irtviewer* :draw-objects)))
 
+(defun assert-reset (form &rest msg)
+  (unless form
+    (warning-message 1 "Assertation failed!~%")
+    (reset)))
+
 ;; Pick & Place
 (defun grasp-deck (&key wait)
   (send *ri* :hand-effort :lhand #f(3 3 50 3))
@@ -103,7 +108,7 @@
 
   ;; grasp card
   (send-hand-width :rhand 20 :time 1000)
-  (assert (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
+  (assert-reset (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
   (send-robot 1000 :wait t)
 
   (send *ri* :hand-effort :rhand 100)
@@ -118,7 +123,7 @@
     (setq x (- x 63)))
 
   (let ((v1 (progn
-              (assert (send *hironxjsk* :rarm :move-end-pos #f(0 -25 -30) :world))
+              (assert-reset (send *hironxjsk* :rarm :move-end-pos #f(0 -25 -30) :world))
               (send *hironxjsk* :larm :move-end-pos #f(-20 25 -20) :world)))
 
         (v2 (send *hironxjsk* :rarm
@@ -139,7 +144,7 @@
                                                                         #f(0.169 -0.067 0.253))))
                   :move-target rhand-end-coords)))
 
-    (assert (every #'vectorp (list v1 v2 v3 v4)))
+    (assert-reset (every #'vectorp (list v1 v2 v3 v4)))
     (when flip (setf (elt v1 5) 120)) ;; rarm-wrist-r
 
     ;; place on table
@@ -181,11 +186,6 @@
   (let ((res (catch 0 (apply #'_pick&place cards) t)))
     (unless res (reset-pose 5000 :wait t))
     res))
-
-(defun assert (form &rest msg)
-  (unless form
-    (warning-message 1 "Assertation failed!~%")
-    (reset)))
 
 ;; Service Callback
 (defun goal-cb (request)
