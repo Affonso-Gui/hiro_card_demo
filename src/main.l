@@ -21,8 +21,6 @@
 (setq deck (make-cube 100 60 26))
 (send deck :set-color :red)
 (hironxjsk-init :objects (list table))
-(send deck :locate (send (send *hironxjsk* :larm-end-coords) :worldpos))
-(send (send *hironxjsk* :larm-end-coords) :assoc deck)
 (objects (list *hironxjsk* table deck))
 
 ;; RHAND-END-COORDS
@@ -50,11 +48,28 @@
     (when wait (send *ri* :wait-interpolation))
     (when (send *ri* :simulation-modep) (irt))))
 
+(defun send-hand-viewer (hand)
+  (flet ((get-joint-list (hand)
+           (let (acc)
+             (dotimes (i 4) (push (read-from-string (format nil "~a_joint~a" hand i)) acc))
+             (nreverse acc))))
+    (let ((joint-list (case hand
+                        (:hands (append (get-joint-list :rhand) (get-joint-list :lhand)))
+                        ((:rhand :lhand) (get-joint-list hand))
+                        (t (error ";; No such hand: ~A~%." hand))))
+          (av (send *ri* :hand-angle-vector hand)))
+      (map float-vector #'(lambda (joint angle) (send *hironxjsk* joint :joint-angle angle))
+           joint-list av))))
+
 (defun send-hand (hand av tm)
-  (send *ri* :hand-angle-vector hand av (* tm time-scale)))
+  (prog1
+      (send *ri* :hand-angle-vector hand av (* tm time-scale))
+    (send-hand-viewer hand)))
 
 (defun send-hand-width (hand width &key time)
-  (send *ri* :hand-width hand width :time (* time time-scale)))
+  (prog1
+      (send *ri* :hand-width hand width :time (* time time-scale))
+    (send-hand-viewer hand)))
 
 (defun sleep-time-scale (tm)
   (unix:usleep (truncate (* 1000 time-scale tm))))
@@ -203,6 +218,9 @@
 (format t "Reseting Pose ...~%")
 (reset-pose 5000 :wait t)
 (send *ri* :stop-grasp :larm)
+(send deck :locate (send (send *hironxjsk* :larm-end-coords) :worldpos))
+(send (send *hironxjsk* :larm-end-coords) :assoc deck)
+(irt)
 
 (format t ";; (pick&place '(40 40) '(-30 40) '(-100 40 t))~%")
 (format t ";; (clear-table)~%")
