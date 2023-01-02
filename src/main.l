@@ -197,6 +197,53 @@
       (objects card-obj))
     (sleep-time-scale 250)))
 
+(defun retrieve-card ()
+  ;; drag to border
+  (send *hironxjsk* :angle-vector #f(-14.0598 -16.1336 -83.7391 0.662583 12.4256 38.7536 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
+  (send-robot 3000 :wait t)
+
+  ;; grasp card
+  (send *ri* :hand-angle-vector :rhand #f(35.2366 0.0 20.3986 -26.5)) ;; second to zero
+
+  (send *ri* :hand-effort :rhand 3)
+  (send *hironxjsk* :angle-vector #f(-24.3646 -38.6116 -51.6646 -20.0808 24.6508 43.8082 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
+  (send-robot 2000 :wait t)
+
+  (send *ri* :start-grasp :rhand :effort 5)
+  (sleep-time-scale 1000)
+  (send *hironxjsk* :angle-vector #f(-26.2288 -47.4995 -38.4989 -18.6733 21.2299 47.2583 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
+  (send-robot 1000 :wait t)
+
+  (send *ri* :start-grasp :rhand :effort 100)
+  (send-hand-width :rhand -2 :time 500)
+
+  ;; lift & reset-pose
+  (let ((v1 #f(-26.1234 -44.8901 -49.6257 -21.6042 47.9646 43.0482 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
+        (v2 (send *hironxjsk* :reset-pose)))
+    (send-robot-sequence (list v1 v2) (list 1000 3000) :wait t))
+
+  (send *ri* :stop-grasp :larm)
+  (send *ri* :stop-impedance-no-wait :rarm)
+
+  ;; place on deck
+  (let ((v1 #f(13.5659 2.81415 -105.167 -72.2099 -9.5505 -15.6451 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0))
+        (v2 #f(17.2557 -3.18916 -116.469 -43.2342 9.6514 -32.6692 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0)))
+    (unwind-protect
+         (progn
+           (send *ri* :stop-collision-detection)
+           (send-robot-sequence (list v1 v2) (list 3000 2000) :wait t))
+      (send *ri* :start-collision-detection)))
+
+  (grasp-deck)
+  (sleep-time-scale 1500)
+
+  ;; move away
+  (send *hironxjsk* :angle-vector #f(-0.127047 -16.0846 -119.954 -55.2938 30.6714 -36.1889 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0))
+  (send-hand-width :rhand 20 :time 750)
+  (send-robot 2000)
+  (reset-pose 3000 :wait t))
+
+
 (defun clear-table ()
   (objects (list *hironxjsk* table deck)))
 
@@ -232,6 +279,7 @@
     res))
 
 ;; Main Loop
+(send *ri* :set-impedance-controller-param :arms :force-gain #f(0.4 0.4 0.4))
 (format t "Reseting Pose ...~%")
 (reset-pose 5000 :wait t)
 (send *ri* :stop-grasp :larm)
