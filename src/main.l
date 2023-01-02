@@ -4,7 +4,7 @@
 
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
-    (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 2.135382e-18 29.9943)))
+    (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0)))
   (:standby (x y &optional flip)
     (send self :reset-pose)
     (if flip (send self :rarm-wrist-r :joint-angle 163))
@@ -107,7 +107,7 @@
 
 ;; Pick & Place
 (defun grasp-deck (&key wait)
-  (send *ri* :hand-effort :lhand #f(3 3 50 3))
+  (send *ri* :hand-effort :lhand #f(3 3 50 10))
   (send-hand :lhand #f(-38.9986 -90.4 -45 92.2) 750) ;; grasp deck
   (if wait (sleep-time-scale 1000)))
 
@@ -126,7 +126,7 @@
 
   ;; grasp card
   (send-hand-width :rhand 20 :time 1000)
-  (assert-reset (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
+  (assert-reset (send *hironxjsk* :rarm :move-end-pos #f(0 0 -55)))
   (send-robot 1000 :wait t)
 
   (send *ri* :hand-effort :rhand 100)
@@ -134,6 +134,15 @@
   (sleep-time-scale 1000)
 
   (send *ri* :stop-grasp :larm))
+
+(defun draw-card ()
+  (grasp-deck :wait t)
+  (pick-card)
+  (send *hironxjsk* :rarm :move-end-pos #f(0 -25 0) :world)
+  (send-robot 1000 :wait t)
+  (send *hironxjsk* :reset-pose)
+  (send-robot 1000)
+  (send-hand-width :rhand 20 :time 1000))
 
 (defun place-card (x y &optional flip)
   (when flip
