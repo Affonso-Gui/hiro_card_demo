@@ -5,6 +5,8 @@
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
     (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0)))
+  (:detect-pose ()
+    (send self :angle-vector #f(-26.1343 -19.5059 -91.3939 -84.0743 29.3296 -15.8469 31.3788 -13.3809 -74.5263 122.956 28.0565 14.8722 0.0 0.0 55.0)))
   (:standby (x y &optional flip)
     (send self :reset-pose)
     (if flip (send self :rarm-wrist-r :joint-angle 163))
@@ -97,6 +99,12 @@
   (prog1
     (send *hironxjsk* :reset-pose)
     (send-hand-width :rhand 20 :time time)
+    (send-robot time :wait wait)
+    (send *irtviewer* :draw-objects)))
+
+(defun detect-pose (&optional (time 5000) &key wait)
+  (prog1
+      (send *hironxjsk* :detect-pose)
     (send-robot time :wait wait)
     (send *irtviewer* :draw-objects)))
 
