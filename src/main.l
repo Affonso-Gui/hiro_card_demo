@@ -16,7 +16,11 @@
            (end (v+ (float-vector x y) #f(-70 70)))
            (diff (concatenate float-vector (v- end (subseq mid 0 2)) #f(0))))
       (assert-reset (send *hironxjsk* :rarm :move-end-pos diff :world))
-      (send *hironxjsk* :larm :move-end-pos diff :world))))
+      (send *hironxjsk* :larm :move-end-pos diff :world)))
+  (:maybe-standby (&optional x y flip)
+    (if (and x y)
+        (send self :standby x y flip)
+        (send self :reset-pose))))
 
 (setq table (room73b2-foldable-desk))
 (send table :locate #f(400 0.0 -800.0) :world)
@@ -172,7 +176,7 @@
                                                                           (if flip
                                                                             (- x 7.742)
                                                                             (+ x 7.742))
-                                                                          (- y 14.636) -120.777)
+                                                                          (- y 14.636) -118.777)
                                                                     :rpy
                                                                     (if flip
                                                                         #f(-0.169 -0.023 0.261)
@@ -197,26 +201,28 @@
       (objects card-obj))
     (sleep-time-scale 250)))
 
-(defun retrieve-card (&optional x y flip)
+(defun retrieve-card (x y &optional flip)
   (setq flip nil)  ;; only kept as an argument for consistency
 
+  ;; this function needs impedance control
+  ;; it is the responsability of the caller to stop it after execution
+  (send *ri* :start-impedance :rarm)
+
   ;; move to card
-  (let* ((v1 (if (and x y)
-                 (send *hironxjsk* :standby x y flip)
-                 (send *hironxjsk* :reset-pose)))
+  (let* ((v1 (send *hironxjsk* :standby x y))
          (v2 (send *hironxjsk* :rarm
                    :inverse-kinematics (waist-transform (make-coords :pos (float-vector
                                                                            (- x 14.742)
-                                                                           (- y 14.636) -80.777)
+                                                                           (- y 2.0) -80.777)
                                                                      :rpy #f(0.169 -0.067 0.253)))
                    :move-target rhand-end-coords))
          (v3 (send *hironxjsk* :rarm :move-end-pos #f(0 0 -40) :world)))
 
     (assert-reset (every #'vectorp (list v1 v2 v3)))
+    (send-hand-width :rhand 0 :time 750)
     (send-robot-sequence (list v1 v2) (list 1500 1500) :wait t)
 
     (send-hand :rhand #f(25 -90.5 20.5986 -26.4) 750)
-    (send *ri* :start-impedance :rarm)
     (send *hironxjsk* :angle-vector v3)
     (send-robot 1500 :wait t))
 
@@ -225,7 +231,7 @@
   (send-robot 3000 :wait t)
 
   ;; grasp card
-  (send *ri* :hand-angle-vector :rhand #f(35.2366 0.0 20.3986 -26.5)) ;; second to zero
+  (send-hand :rhand #f(35.2366 0.0 20.3986 -26.5) 1000) ;; second to zero
 
   (send *ri* :hand-effort :rhand 3)
   (send *hironxjsk* :angle-vector #f(-24.3646 -38.6116 -51.6646 -20.0808 24.6508 43.8082 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
@@ -247,8 +253,6 @@
     (send *ri* :stop-grasp :larm)
     (send *ri* :wait-interpolation))
 
-  (send *ri* :stop-impedance-no-wait :rarm)
-
   ;; place on deck
   (unwind-protect
        (progn
@@ -259,7 +263,7 @@
          (send-robot 2000 :wait t))
     (send *ri* :start-collision-detection))
 
-  (send *ri* :hand-effort :lhand #f(10 3 50 10))
+  (send *ri* :hand-effort :lhand #f(3 3 50 10))
   (send-hand :lhand #f(-38.9986 -90.4 -45 92.2) 750)
   (sleep-time-scale 1500)
   (send-hand-width :rhand 2 :time 500)
@@ -277,32 +281,46 @@
 
 (defun go-standby (&optional x y flip &key wait)
   (let ((v1 (send *hironxjsk* :rarm :move-end-pos #f(0 0 30)))
-        (v2 (if (and x y)
-              (send *hironxjsk* :standby x y flip)
-              (send *hironxjsk* :reset-pose))))
+        (v2 (send *hironxjsk* :maybe-standby x y flip)))
   (send-hand-width :rhand 30 :time 1500)
   (send-robot-sequence (list v1 v2) (list 1000 1500) :wait wait)))
 
-(defun _pick&place (&rest cards)
-  (flet ((fix-card-pos (x y &optional flip)
-           ;; switch camera coords to robot coords
-           ;; scratch window: -210~210 x -70~140
-           (list (max 200 (+ y 340)) x flip)))
-    (when cards
-      (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
-      (send* *hironxjsk* :standby (car cards))
-      (send-robot 1500)
-      (grasp-deck :wait t))
+(defun fix-card-pos (x y &optional flip)
+  ;; switch camera coords to robot coords
+  ;; scratch window: -210~210 x -70~140
+  (list (max 200 (+ y 340)) x flip))
 
-    (dotimes (i (length cards))
-      (pick-card)
-      (apply #'place-card (nth i cards))
-      (apply #'go-standby (nth (1+ i) cards)))))
+(defun _pick&place (&rest cards)
+  (when cards
+    (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
+    (send* *hironxjsk* :standby (car cards))
+    (send-robot 1500)
+    (grasp-deck :wait t))
+
+  (dotimes (i (length cards))
+    (pick-card)
+    (apply #'place-card (nth i cards))
+    (apply #'go-standby (nth (1+ i) cards))))
+
+(defun _retrieve (&rest cards)
+  (unwind-protect
+       (progn
+         (send *ri* :start-impedance :rarm)
+         (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
+         (dotimes (i (length cards))
+           (apply #'retrieve-card (nth i cards)))
+         (reset-pose 3000 :wait nil))
+    (send *ri* :stop-impedance-no-wait :rarm)))
 
 
 ;; Demo Function
 (defun pick&place (&rest cards)
   (let ((res (catch 0 (apply #'_pick&place cards) t)))
+    (unless res (reset-pose 5000 :wait t))
+    res))
+
+(defun retrieve (&rest cards)
+  (let ((res (catch 0 (apply #'_retrieve cards) t)))
     (unless res (reset-pose 5000 :wait t))
     res))
 
@@ -315,5 +333,6 @@
 (send (send *hironxjsk* :larm-end-coords) :assoc deck)
 (irt)
 
-(format t ";; (pick&place '(40 40) '(-30 40) '(-100 40 t))~%")
+(format t ";; (pick&place '(80 40) '(-10 40) '(-100 40 t))~%")
+(format t ";; (retrieve '(-100 40) '(-10 40) '(80 40))~%")
 (format t ";; (clear-table)~%")
