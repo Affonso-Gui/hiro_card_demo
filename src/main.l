@@ -219,28 +219,31 @@
 
   ;; lift & reset-pose
   (let ((v1 #f(-26.1234 -44.8901 -49.6257 -21.6042 47.9646 43.0482 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
-        (v2 (send *hironxjsk* :reset-pose)))
+        (v2 #f(-6.25666 -5.70116 -106.475 -78.2377 11.2569 -20.1883 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0)))
     (send-robot-sequence (list v1 v2) (list 1000 3000) :wait t))
 
   (send *ri* :stop-grasp :larm)
   (send *ri* :stop-impedance-no-wait :rarm)
 
   ;; place on deck
-  (let ((v1 #f(13.5659 2.81415 -105.167 -72.2099 -9.5505 -15.6451 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0))
-        (v2 #f(17.2557 -3.18916 -116.469 -43.2342 9.6514 -32.6692 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0)))
-    (unwind-protect
-         (progn
-           (send *ri* :stop-collision-detection)
-           (send-robot-sequence (list v1 v2) (list 3000 2000) :wait t))
-      (send *ri* :start-collision-detection)))
+  (unwind-protect
+       (progn
+         (send *ri* :stop-collision-detection)
+         (send *hironxjsk* :angle-vector #f(22.8032 11.6315 -115.744 -68.9737 -17.4514 -20.418 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0))
+         (send-robot 3000 :wait t)
+         (send *hironxjsk* :angle-vector #f(23.4631 5.55737 -123.83 -40.6266 4.99238 -35.8093 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0))
+         (send-robot 2000 :wait t))
+    (send *ri* :start-collision-detection))
 
   (grasp-deck)
   (sleep-time-scale 1500)
+  (send-hand-width :rhand 2 :time 500)
+  (send *ri* :hand-effort :rhand 3)
 
   ;; move away
-  (send *hironxjsk* :angle-vector #f(-0.127047 -16.0846 -119.954 -55.2938 30.6714 -36.1889 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0))
-  (send-hand-width :rhand 20 :time 750)
+  (send *hironxjsk* :angle-vector #f(4.39827 -6.94751 -129.308 -53.1666 28.2536 -38.497 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0))
   (send-robot 2000)
+  (send *ri* :hand-effort :rhand 100)
   (reset-pose 3000 :wait t))
 
 
