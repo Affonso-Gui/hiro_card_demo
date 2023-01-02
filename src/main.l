@@ -197,7 +197,29 @@
       (objects card-obj))
     (sleep-time-scale 250)))
 
-(defun retrieve-card ()
+(defun retrieve-card (&optional x y flip)
+  (setq flip nil)  ;; only kept as an argument for consistency
+
+  ;; move to card
+  (let* ((v1 (if (and x y)
+                 (send *hironxjsk* :standby x y flip)
+                 (send *hironxjsk* :reset-pose)))
+         (v2 (send *hironxjsk* :rarm
+                   :inverse-kinematics (waist-transform (make-coords :pos (float-vector
+                                                                           (- x 14.742)
+                                                                           (- y 14.636) -80.777)
+                                                                     :rpy #f(0.169 -0.067 0.253)))
+                   :move-target rhand-end-coords))
+         (v3 (send *hironxjsk* :rarm :move-end-pos #f(0 0 -40) :world)))
+
+    (assert-reset (every #'vectorp (list v1 v2 v3)))
+    (send *ri* :start-impedance :rarm)
+    (send-robot-sequence (list v1 v2) (list 2000 1500) :wait t)
+
+    (send-hand :rhand #f(25 -90.5 20.5986 -26.4) 750)
+    (send *hironxjsk* :angle-vector v3)
+    (send-robot 1500 :wait t))
+
   ;; drag to border
   (send *hironxjsk* :angle-vector #f(-14.0598 -16.1336 -83.7391 0.662583 12.4256 38.7536 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
   (send-robot 3000 :wait t)
@@ -220,7 +242,7 @@
   ;; lift & reset-pose
   (let ((v1 #f(-26.1234 -44.8901 -49.6257 -21.6042 47.9646 43.0482 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 0.0 54.9994))
         (v2 #f(-6.25666 -5.70116 -106.475 -78.2377 11.2569 -20.1883 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 0.0 55.0)))
-    (send-robot-sequence (list v1 v2) (list 1000 3000) :wait t))
+    (send-robot-sequence (list v1 v2) (list 1000 2000) :wait t))
 
   (send *ri* :stop-grasp :larm)
   (send *ri* :stop-impedance-no-wait :rarm)
@@ -235,7 +257,8 @@
          (send-robot 2000 :wait t))
     (send *ri* :start-collision-detection))
 
-  (grasp-deck)
+  (send *ri* :hand-effort :lhand #f(10 3 50 10))
+  (send-hand :lhand #f(-38.9986 -90.4 -45 92.2) 750)
   (sleep-time-scale 1500)
   (send-hand-width :rhand 2 :time 500)
   (send *ri* :hand-effort :rhand 3)
@@ -246,17 +269,16 @@
   (send *ri* :hand-effort :rhand 100)
   (reset-pose 3000 :wait t))
 
-
 (defun clear-table ()
   (objects (list *hironxjsk* table deck)))
 
-(defun go-standby (&optional x y flip)
+(defun go-standby (&optional x y flip &key wait)
   (let ((v1 (send *hironxjsk* :rarm :move-end-pos #f(0 0 30)))
         (v2 (if (and x y)
               (send *hironxjsk* :standby x y flip)
               (send *hironxjsk* :reset-pose))))
   (send-hand-width :rhand 30 :time 1500)
-  (send-robot-sequence (list v1 v2) (list 1000 1500))))
+  (send-robot-sequence (list v1 v2) (list 1000 1500) :wait wait)))
 
 (defun _pick&place (&rest cards)
   (flet ((fix-card-pos (x y &optional flip)
