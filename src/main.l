@@ -297,6 +297,7 @@
     (pick-card)
     (apply #'place-card (nth i cards))
     (apply #'go-standby (nth (1+ i) cards)))
+  (send *ri* :wait-interpolation)
   t)
 
 (defun _retrieve (&rest cards)
@@ -307,7 +308,7 @@
          (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
          (dotimes (i (length cards))
            (apply #'retrieve-card (nth i cards)))
-         (reset-pose 3000 :wait nil)
+         (reset-pose 3000 :wait t)
          t)
     (send *ri* :stop-impedance-no-wait :rarm)))
 
@@ -315,10 +316,7 @@
 ;; Demo Function
 (defmacro with-assertion-catch (form)
   (let ((result (gensym)))
-    `(handler-case
-         (let ((,result ,form))
-           (if ,result (reset-pose 5000 :wait t))
-           ,result)
+    `(handler-case ,form
        (assertion-error (e)
          (lisp::print-error-message e)
          (ros::ros-warn "Aborting task and returning to home position...")
