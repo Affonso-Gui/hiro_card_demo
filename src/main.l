@@ -286,25 +286,29 @@
   (list (max 200 (+ y 340)) x flip))
 
 (defun _pick&place (&rest cards)
-  (when cards
-    (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
-    (send* *hironxjsk* :standby (car cards))
-    (send-robot 1500)
-    (grasp-deck :wait t))
+  (if (not cards) (return-from _pick&place nil))
+
+  (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
+  (send* *hironxjsk* :standby (car cards))
+  (send-robot 1500)
+  (grasp-deck :wait t)
 
   (dotimes (i (length cards))
     (pick-card)
     (apply #'place-card (nth i cards))
-    (apply #'go-standby (nth (1+ i) cards))))
+    (apply #'go-standby (nth (1+ i) cards)))
+  t)
 
 (defun _retrieve (&rest cards)
+  (if (not cards) (return-from _retrieve nil))
   (unwind-protect
        (progn
          (send *ri* :start-impedance :rarm)
          (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
          (dotimes (i (length cards))
            (apply #'retrieve-card (nth i cards)))
-         (reset-pose 3000 :wait nil))
+         (reset-pose 3000 :wait nil)
+         t)
     (send *ri* :stop-impedance-no-wait :rarm)))
 
 
@@ -313,7 +317,7 @@
   (let ((result (gensym)))
     `(handler-case
          (let ((,result ,form))
-           (unless ,result (reset-pose 5000 :wait t))
+           (if ,result (reset-pose 5000 :wait t))
            ,result)
        (assertion-error (e)
          (lisp::print-error-message e)
