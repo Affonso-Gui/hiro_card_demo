@@ -16,8 +16,11 @@
   t)
 
 (defun pick-and-place-execute-cb (server goal)
-  (unwind-protect (apply #'pick&place *goal-request*)
-    (setq *goal-request* nil)))
+  (let ((cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) *goal-request*)))
+    (unwind-protect
+         (prog1 (apply #'_pick&place cards)
+           (detect-pose 3000 :wait t))
+      (setq *goal-request* nil))))
 
 (defun retrieve-execute-cb (server goal)
   (unwind-protect (retrieve-all-cards)

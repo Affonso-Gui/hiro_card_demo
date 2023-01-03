@@ -308,7 +308,6 @@
     (pick-card)
     (apply #'place-card (nth i cards))
     (apply #'go-standby (nth (1+ i) cards)))
-  (detect-pose 3000 :wait t)
   t)
 
 (defun _retrieve (&rest cards)
@@ -335,7 +334,9 @@
 
 (defun pick&place (&rest cards)
   (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
-  (with-assertion-catch (apply #'_pick&place cards)))
+  (with-assertion-catch
+      (prog1 (apply #'_pick&place cards)
+        (reset-pose 3000 :wait t))))
 
 (defun retrieve (&rest cards)
   (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
