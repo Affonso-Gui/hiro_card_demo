@@ -208,7 +208,7 @@
   (let* ((v1 (send *hironxjsk* :standby x y))
          (v2 (send *hironxjsk* :rarm
                    :inverse-kinematics (waist-transform (make-coords :pos (float-vector
-                                                                           (- x 14.742)
+                                                                           (- x 10.0)
                                                                            (- y 2.0) -80.777)
                                                                      :rpy #f(0.169 -0.067 0.253)))
                    :move-target rhand-end-coords))
@@ -253,9 +253,9 @@
   (unwind-protect
        (progn
          (send *ri* :stop-collision-detection)
-         (send *hironxjsk* :angle-vector #f(20.0554 11.3094 -116.197 -69.7232 -14.6884 -20.1964 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))
+         (send *hironxjsk* :angle-vector #f(19.2219 11.1853 -116.308 -69.9534 -13.8515 -20.1379 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))
          (send-robot 2000 :wait t)
-         (send *hironxjsk* :angle-vector #f(23.4631 5.55737 -123.83 -40.6266 4.99238 -35.8093 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))
+         (send *hironxjsk* :angle-vector #f(23.0086 5.51433 -123.968 -40.8259 5.39099 -35.6239 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))
          (send-robot 2000 :wait t))
     (send *ri* :start-collision-detection))
 
@@ -266,7 +266,7 @@
   (send *ri* :hand-effort :rhand 3)
 
   ;; move away
-  (send *hironxjsk* :angle-vector #f(4.39827 -6.94751 -129.308 -53.1666 28.2536 -38.497 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))
+  (send *hironxjsk* :angle-vector #f(2.89197 -8.10794 -129.146 -54.3726 29.6771 -38.7213 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))
   (send-robot 2000)
   (grasp-deck)
   (send *ri* :hand-effort :rhand 100)
@@ -338,7 +338,7 @@
 (defun retrieve-all-cards ()
   (let* ((msg (one-shot-subscribe "/docker/detic_segmentor/output/card/table/centroid" geometry_msgs::PoseArray))
          (cards (mapcar #'fix-msg-pos (send msg :poses))))
-    (apply #'_retrieve cards)
+    (with-assertion-catch (apply #'_retrieve cards))
     (clear-table)))
 
 ;; Main Loop
