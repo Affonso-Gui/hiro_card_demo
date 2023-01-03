@@ -12,6 +12,15 @@ cd catkin_ws
 catkin build hiro_card_demo
 ```
 
+#### Requirements
+
+This demo needs the rubber attachments shown below.
+<p align="left">
+  <img height="200" src="https://user-images.githubusercontent.com/20625381/210297979-a8e0980b-6a55-4295-bf5e-c697ee2bdf58.jpg">
+
+It also relies on **ACCURATE JOINT CALIBRATION**. 
+Make sure to always calibrate from the power-off pose, and try to recalibrate when not being able to grasp cards correctly.
+
 #### Run from the Scratch web interface:
 1. `roslaunch hiro_card_demo start.launch`
 1. Open http://scratch3-ros.jsk.imi.i.u-tokyo.ac.jp
