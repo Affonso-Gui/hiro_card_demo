@@ -2,6 +2,8 @@
 (load "models/room73b2-foldable-desk-object.l")
 (load "models/arrow-object.l")
 
+(defvar *enable-viewer* t)
+
 (defmethod HIRONXJSK-robot
   (:reset-pose ()
     (send self :angle-vector #f(-7.37441 -4.85583 -103.028 -77.7359 11.3909 -15.6836 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0)))
@@ -27,7 +29,7 @@
 (setq deck (make-cube 100 60 26))
 (send deck :set-color :red)
 (hironxjsk-init :objects (list table))
-(objects (list *hironxjsk* table deck))
+(when *enable-viewer* (objects (list *hironxjsk* table deck)))
 
 ;; RHAND-END-COORDS
 (setq rhand-end-coords (send (arrow) :newcoords (send (send *hironxjsk* :rarm-end-coords) :copy-worldcoords)))
@@ -44,7 +46,8 @@
             (* time time-scale)
             nil 0 :scale time-scale :min-time time-scale)
     (when wait (send *ri* :wait-interpolation))
-    (when (send *ri* :simulation-modep) (irt))))
+    (when (and *enable-viewer* (send *ri* :simulation-modep))
+      (irt))))
 
 (defun send-robot-sequence (avs times &key wait)
   (prog1
@@ -52,7 +55,8 @@
             (mapcar #'(lambda (val) (* val time-scale)) times)
             nil 0 :scale time-scale :min-time time-scale)
     (when wait (send *ri* :wait-interpolation))
-    (when (send *ri* :simulation-modep) (irt))))
+    (when (and *enable-viewer* (send *ri* :simulation-modep))
+      (irt))))
 
 (defun send-hand-viewer (hand)
   (flet ((get-joint-list (hand)
@@ -89,11 +93,11 @@
 
 (defun send-viewer ()
   (send *hironxjsk* :angle-vector (send *ri* :state :angle-vector))
-  (send *irtviewer* :draw-objects))
+  (when *enable-viewer* (send *irtviewer* :draw-objects)))
 
 (defun send-reference ()
   (send *hironxjsk* :angle-vector (send *ri* :state :reference-vector))
-  (send *irtviewer* :draw-objects))
+  (when *enable-viewer* (send *irtviewer* :draw-objects)))
 
 (defun send-rarm (vec)
   (send *hironxjsk* :rarm :angle-vector vec)
@@ -104,14 +108,14 @@
     (send *hironxjsk* :reset-pose)
     (send-hand-width :rhand 20 :time time)
     (send-robot time :wait wait)
-    (send *irtviewer* :draw-objects)))
+    (when *enable-viewer* (send *irtviewer* :draw-objects))))
 
 (defun detect-pose (&optional (time 5000) &key wait)
   (prog1
       (send *hironxjsk* :detect-pose)
     (send-hand-width :rhand 20 :time time)
     (send-robot time :wait wait)
-    (send *irtviewer* :draw-objects)))
+    (when *enable-viewer* (send *irtviewer* :draw-objects))))
 
 ;; Pick & Place
 (defun grasp-deck (&key wait)
@@ -172,7 +176,7 @@
                                                                           (if flip
                                                                             (- x 7.742)
                                                                             (+ x 7.742))
-                                                                          (- y 14.636) -118.777)
+                                                                          (- y 14.636) -116.777)
                                                                     :rpy
                                                                     (if flip
                                                                         #f(-0.169 -0.023 0.261)
@@ -189,12 +193,13 @@
     (sleep-time-scale 1750)
     (send-hand :rhand #f(25 -90.5 20.5986 -26.4) 750)
     (send *ri* :wait-interpolation)
-    (let ((card-obj (make-cube 100 60 1)))
-      (send card-obj :set-color (if flip :white :red))
-      (send card-obj :locate (float-vector (elt (send rhand-end-coords :worldpos) 0)
-                                           (elt (send rhand-end-coords :worldpos) 1)
-                                           -100))
-      (objects card-obj))
+    (when *enable-viewer*
+      (let ((card-obj (make-cube 100 60 1)))
+        (send card-obj :set-color (if flip :white :red))
+        (send card-obj :locate (float-vector (elt (send rhand-end-coords :worldpos) 0)
+                                             (elt (send rhand-end-coords :worldpos) 1)
+                                             -100))
+        (objects card-obj)))
     (sleep-time-scale 250)))
 
 (defun retrieve-card (x y &optional flip)
@@ -273,7 +278,8 @@
   (reset-pose 2000 :wait t))
 
 (defun clear-table ()
-  (objects (list *hironxjsk* table deck)))
+  (when *enable-viewer*
+    (objects (list *hironxjsk* table deck))))
 
 (defun go-standby (&optional x y flip &key wait)
   (let ((v1 (send *hironxjsk* :rarm :move-end-pos #f(0 0 30)))
@@ -302,7 +308,7 @@
     (pick-card)
     (apply #'place-card (nth i cards))
     (apply #'go-standby (nth (1+ i) cards)))
-  (send *ri* :wait-interpolation)
+  (detect-pose 3000 :wait t)
   t)
 
 (defun _retrieve (&rest cards)
@@ -339,7 +345,8 @@
   (let* ((msg (one-shot-subscribe "/docker/detic_segmentor/output/card/table/centroid" geometry_msgs::PoseArray))
          (cards (mapcar #'fix-msg-pos (send msg :poses))))
     (with-assertion-catch (apply #'_retrieve cards))
-    (clear-table)))
+    (clear-table)
+    t))
 
 ;; Main Loop
 (send *ri* :set-impedance-controller-param :arms :force-gain #f(0.4 0.4 0.4))
@@ -348,7 +355,7 @@
 (send *ri* :stop-grasp :larm)
 (send deck :locate (send (send *hironxjsk* :larm-end-coords) :worldpos))
 (send (send *hironxjsk* :larm-end-coords) :assoc deck)
-(irt)
+(when *enable-viewer* (irt))
 
 (format t ";; (pick&place '(80 40) '(-10 40) '(-100 40 t))~%")
 (format t ";; (retrieve-all-cards)~%")
