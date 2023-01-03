@@ -109,6 +109,7 @@
 (defun detect-pose (&optional (time 5000) &key wait)
   (prog1
       (send *hironxjsk* :detect-pose)
+    (send-hand-width :rhand 20 :time time)
     (send-robot time :wait wait)
     (send *irtviewer* :draw-objects)))
 
@@ -285,10 +286,14 @@
   ;; scratch window: -210~210 x -70~140
   (list (max 200 (+ y 340)) x flip))
 
+(defun fix-msg-pos (pose)
+  ;; geometry_msgs/Pose to '(x y)
+  (list (* (send (send pose :position) :x) 1000)
+        (* (send (send pose :position) :y) 1000)
+        nil))
+
 (defun _pick&place (&rest cards)
   (if (not cards) (return-from _pick&place nil))
-
-  (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
   (send* *hironxjsk* :standby (car cards))
   (send-robot 1500)
   (grasp-deck :wait t)
@@ -305,7 +310,6 @@
   (unwind-protect
        (progn
          (send *ri* :start-impedance :rarm)
-         (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
          (dotimes (i (length cards))
            (apply #'retrieve-card (nth i cards)))
          (reset-pose 3000 :wait t)
@@ -324,10 +328,18 @@
          nil))))
 
 (defun pick&place (&rest cards)
+  (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
   (with-assertion-catch (apply #'_pick&place cards)))
 
 (defun retrieve (&rest cards)
+  (setq cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) cards))
   (with-assertion-catch (apply #'_retrieve cards)))
+
+(defun retrieve-all-cards ()
+  (let* ((msg (one-shot-subscribe "/docker/detic_segmentor/output/card/table/centroid" geometry_msgs::PoseArray))
+         (cards (mapcar #'fix-msg-pos (send msg :poses))))
+    (apply #'_retrieve cards)
+    (clear-table)))
 
 ;; Main Loop
 (send *ri* :set-impedance-controller-param :arms :force-gain #f(0.4 0.4 0.4))
@@ -339,5 +351,4 @@
 (irt)
 
 (format t ";; (pick&place '(80 40) '(-10 40) '(-100 40 t))~%")
-(format t ";; (retrieve '(-100 40) '(-10 40) '(80 40))~%")
-(format t ";; (clear-table)~%")
+(format t ";; (retrieve-all-cards)~%")
