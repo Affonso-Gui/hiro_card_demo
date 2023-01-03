@@ -15,7 +15,7 @@
                           (send (send *hironxjsk* :larm-end-coords) :worldpos)))
            (end (v+ (float-vector x y) #f(-70 70)))
            (diff (concatenate float-vector (v- end (subseq mid 0 2)) #f(0))))
-      (assert-reset (send *hironxjsk* :rarm :move-end-pos diff :world))
+      (assert (send *hironxjsk* :rarm :move-end-pos diff :world))
       (send *hironxjsk* :larm :move-end-pos diff :world)))
   (:maybe-standby (&optional x y flip)
     (if (and x y)
@@ -112,11 +112,6 @@
     (send-robot time :wait wait)
     (send *irtviewer* :draw-objects)))
 
-(defun assert-reset (form &rest msg)
-  (unless form
-    (warning-message 1 "Assertation failed!~%")
-    (reset)))
-
 ;; Pick & Place
 (defun grasp-deck (&key wait)
   (send *ri* :hand-effort :lhand #f(3 3 50 10))
@@ -138,7 +133,7 @@
 
   ;; grasp card
   (send-hand-width :rhand 20 :time 1000)
-  (assert-reset (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
+  (assert (send *hironxjsk* :rarm :move-end-pos #f(0 0 -60)))
   (send-robot 1000 :wait t)
 
   (send *ri* :hand-effort :rhand 100)
@@ -162,7 +157,7 @@
     (setq x (- x 63)))
 
   (let ((v1 (progn
-              (assert-reset (send *hironxjsk* :rarm :move-end-pos #f(0 -25 -30) :world))
+              (assert (send *hironxjsk* :rarm :move-end-pos #f(0 -25 -30) :world))
               (send *hironxjsk* :larm :move-end-pos #f(-20 25 -20) :world)))
 
         (v2 (send *hironxjsk* :rarm
@@ -183,7 +178,7 @@
                                                                         #f(0.169 -0.067 0.253))))
                   :move-target rhand-end-coords)))
 
-    (assert-reset (every #'vectorp (list v1 v2 v3 v4)))
+    (assert (every #'vectorp (list v1 v2 v3 v4)))
     (when flip (setf (elt v1 5) 120)) ;; rarm-wrist-r
 
     ;; place on table
@@ -218,7 +213,7 @@
                    :move-target rhand-end-coords))
          (v3 (send *hironxjsk* :rarm :move-end-pos #f(0 0 -40) :world)))
 
-    (assert-reset (every #'vectorp (list v1 v2 v3)))
+    (assert (every #'vectorp (list v1 v2 v3)))
     (send-hand-width :rhand 0 :time 750)
     (send-robot-sequence (list v1 v2) (list 1500 1500) :wait t)
 
@@ -314,15 +309,23 @@
 
 
 ;; Demo Function
+(defmacro with-assertion-catch (form)
+  (let ((result (gensym)))
+    `(handler-case
+         (let ((,result ,form))
+           (unless ,result (reset-pose 5000 :wait t))
+           ,result)
+       (assertion-error (e)
+         (lisp::print-error-message e)
+         (ros::ros-warn "Aborting task and returning to home position...")
+         (reset-pose 5000 :wait t)
+         nil))))
+
 (defun pick&place (&rest cards)
-  (let ((res (catch 0 (apply #'_pick&place cards) t)))
-    (unless res (reset-pose 5000 :wait t))
-    res))
+  (with-assertion-catch (apply #'_pick&place cards)))
 
 (defun retrieve (&rest cards)
-  (let ((res (catch 0 (apply #'_retrieve cards) t)))
-    (unless res (reset-pose 5000 :wait t))
-    res))
+  (with-assertion-catch (apply #'_retrieve cards)))
 
 ;; Main Loop
 (send *ri* :set-impedance-controller-param :arms :force-gain #f(0.4 0.4 0.4))
