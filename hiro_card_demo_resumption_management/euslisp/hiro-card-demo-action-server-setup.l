@@ -6,9 +6,10 @@
 (defvar *clear-request* nil)
 (defparameter *enable-viewer* nil)
 
+;; by using the same require key as in main.l we prevent from overwriting our changes
+(require :hiro-interface "package://hiro_card_demo_resumption_management/euslisp/hironxjsk-card-interface.l")
 (load "package://hiro_card_demo/src/main.l")
 (load "package://roseus_bt/euslisp/nodes.l")
-
 
 (defun reset-requests ()
   (setq *goal-request* nil)
@@ -31,6 +32,10 @@
   (ros::ros-info ";; Clear request received")
   (setq *clear-request* t)
   (send request :response))
+
+
+;; monitor nodes
+(send *ri* :start-card-monitoring :rarm "/docker/detic_segmentor/output/raw/centroid")
 
 
 ;; scratch services
