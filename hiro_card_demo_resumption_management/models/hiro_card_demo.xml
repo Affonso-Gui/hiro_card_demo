@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<root main_tree_to_execute="BehaviorTree">
+    <!-- ////////// -->
+    <BehaviorTree ID="BehaviorTree">
+        <RetryUntilSuccessful num_attempts="-1">
+            <SequenceStar>
+                <Sequence name="PickAndPlace">
+                    <Condition ID="HasGoalRequest"/>
+                    <Action ID="PICK_AND_PLACE"/>
+                </Sequence>
+                <Sequence name="Retrieve">
+                    <Condition ID="HasClearRequest"/>
+                    <Action ID="RETRIEVE"/>
+                </Sequence>
+            </SequenceStar>
+        </RetryUntilSuccessful>
+    </BehaviorTree>
+    <!-- ////////// -->
+    <TreeNodesModel>
+        <Action ID="DETECT" server_name="/hiro_card_demo/detect"/>
+        <Condition ID="HasClearRequest" service_name="/hiro_card_demo/wait_clear"/>
+        <Condition ID="HasGoalRequest" service_name="/hiro_card_demo/wait_goal"/>
+        <Action ID="PICK_AND_PLACE" server_name="/hiro_card_demo/pick_and_place"/>
+        <Action ID="RETRIEVE" server_name="/hiro_card_demo/retrieve"/>
+    </TreeNodesModel>
+    <!-- ////////// -->
+</root>

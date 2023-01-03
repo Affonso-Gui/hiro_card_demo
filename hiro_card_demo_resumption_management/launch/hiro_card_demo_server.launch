@@ -1,0 +1,11 @@
+<launch>
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+    <arg name="unregister_timeout" value="100000"/>
+  </include>
+
+  <!-- <node pkg="roseus" type="roseus" name="hiro_card_demo_action_server" -->
+  <!--       args="$(find hiro_card_demo_resumption_management)/euslisp/hiro-card-demo-action-server.l" -->
+  <!--       output="screen"/> -->
+
+
+</launch>
