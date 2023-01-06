@@ -41,6 +41,7 @@
 
 ;; Robot motion
 (defun send-robot (time &key wait)
+  (ros::ros-warn "MOTION: rarm-card ~A" (send *ri* :get-robot-state :rarm-card))
   (prog1
       (send *ri* :angle-vector (send *hironxjsk* :angle-vector)
             (* time time-scale)
@@ -133,6 +134,7 @@
   (if wait (sleep-time-scale 1000)))
 
 (defun pick-card ()
+  (log:log-info "PICK-CARD")
   ;; push card
   (send-hand :lhand
         (v+ #f(-10 -10 0 0) (send *ri* :hand-angle-vector :lhand)) 750)
@@ -166,6 +168,7 @@
   (send-hand-width :rhand 20 :time 1000))
 
 (defun place-card (x y &optional flip)
+  (log:log-info "PLACE-CARD")
   (when flip
     (send *hironxjsk* :rarm-wrist-r :joint-angle -15.6836)
     (setq x (- x 63)))
@@ -211,6 +214,7 @@
     (sleep-time-scale 250)))
 
 (defun retrieve-card (x y &optional flip)
+  (log:log-info "RETRIEVE CARD")
   (setq flip nil)  ;; only kept as an argument for consistency
 
   ;; this function needs impedance control
@@ -236,6 +240,7 @@
     (send-robot 1500 :wait t))
 
   ;; drag to border
+  (log:log-info "DRAG")
   (send *hironxjsk* :angle-vector #f(-14.0598 -16.1336 -83.7391 0.662583 12.4256 38.7536 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 5.0 60.0))
   (send-robot 3000 :wait t)
 
@@ -255,6 +260,7 @@
   (send-hand-width :rhand -2 :time 500)
 
   ;; lift & reset-pose
+  (log:log-info "LIFT")
   (let ((v1 #f(-26.1234 -44.8901 -49.6257 -21.6042 47.9646 43.0482 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 5.0 60.0))
         (v2 #f(-6.25666 -5.70116 -106.475 -78.2377 11.2569 -20.1883 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0)))
     (send-robot-sequence (list v1 v2) (list 1000 2000))
