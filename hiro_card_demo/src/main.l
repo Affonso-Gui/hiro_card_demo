@@ -82,7 +82,16 @@
     (send-hand-viewer hand)))
 
 (defun sleep-time-scale (tm)
-  (unix:usleep (truncate (* 1000 time-scale tm))))
+  (let ((tm (* tm time-scale 1e-3))
+        now)
+    (while (> tm 0)
+      (lisp::atomic
+          (progn
+            (setq now (ros::time-now))
+            (send *ri* :spin-once)
+            (ros::sleep)
+            (decf tm (send (ros::time- (ros::time-now) now) :to-sec)))
+        (interruption ())))))
 
 ;; Utility function
 (defun irt () (send *irtviewer* :draw-objects))
@@ -160,7 +169,6 @@
   (when flip
     (send *hironxjsk* :rarm-wrist-r :joint-angle -15.6836)
     (setq x (- x 63)))
-
   (let ((v1 (progn
               (assert (send *hironxjsk* :rarm :move-end-pos #f(0 -25 -30) :world))
               (send *hironxjsk* :larm :move-end-pos #f(-20 25 -20) :world)))
