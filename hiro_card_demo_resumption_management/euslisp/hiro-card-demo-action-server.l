@@ -13,7 +13,7 @@
 (setq *resume-motion-scale* (* *resume-motion-scale* time-scale))
 (setq roseus_resume:*resume-time-scale* 10.0)
 (setq roseus_resume:*resume-min-time* 1.0)
-(setq roseus_resume:*intersection-resume-wait-time* 1.0)
+(setq roseus_resume:*intersection-resume-wait-time* 2.0)
 
 (setq *epsilon-alist*
       (set-alist coordinates (list *coordinate-threshold* *coordinate-rot-threshold*)

@@ -34,7 +34,18 @@
         (dolist (lk (send robot hand))
           (when (= (user::collision-check lk collision-model) 1)
             (send self :set-robot-state1 key t)
-            (return-from :hironxjsk-card-grasping-state-callback t))))))
+            (when (boundp '*hironxjsk*)
+              (let ((tint (get-tint-mark (get-tint (send *hironxjsk* arm :angle-vector)))))
+                ;; check in *angle-vector-tint*
+                (when (and (not tint) (assoc arm *angle-vector-tint*))
+                  (setq tint (get-tint-mark *angle-vector-tint*)))
+                (when tint
+                  (if (assoc arm *gripper-tint*)
+                      ;; don't use setf to avoid having to clone in motion-checkpoint
+                      (setq *gripper-tint* (acons arm tint (remove arm *gripper-tint* :key #'car)))
+                      ;; add to list
+                      (setq *gripper-tint* (acons arm tint *gripper-tint*)))))
+            (return-from :hironxjsk-card-grasping-state-callback t)))))))
   (:start-card-monitoring (arm topic &key
       (collision-range 100.0)
       (collision-model (make-cube collision-range collision-range collision-range)))
@@ -44,13 +55,19 @@
                       :groupname groupname)))
   (:stop-card-monitoring (topic)
     (ros::unsubscribe topic))
-  (:reset-card-grasping-state ()
-    (send self :set-robot-state1 :rarm-card nil)
-    (send self :set-robot-state1 :larm-card nil)
+  (:reset-card-grasping-state (&optional (arm :arms))
+    (dolist (a (if (eq arm :arms) '(:larm :rarm) (list arm)))
+      (setq *gripper-tint* (remove a *gripper-tint* :key #'car))
+      (if (eql a :rarm) (send self :set-robot-state1 :rarm-card nil))
+      (if (eql a :larm) (send self :set-robot-state1 :larm-card nil)))
     t)
   (:hand-angle-vector (hand &optional av (tm 1000))
-    (send self :reset-card-grasping-state)
-    (send-super :hand-angle-vector hand av tm)))
+    (let ((arm (case hand
+                 (:rhand :rarm)
+                 (:lhand :larm)
+                 (:hands :arms))))
+      (send self :reset-card-grasping-state arm)
+      (send-super :hand-angle-vector hand av tm))))
 
 
 ;; use card-interface and don't tract tint markings
