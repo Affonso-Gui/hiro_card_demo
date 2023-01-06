@@ -1,0 +1,138 @@
+<launch>
+  <arg name="MANAGER" value="robot_mask_manager" />
+
+  <arg name="CHECK_INTERSECTION" default="true"/>
+  <arg name="USE_COMPRESSED" default="true"/>
+
+  <arg name="INPUT_IMAGE" default="/head_camera/rgb/image_rect_color"/>
+  <!-- <arg name="INPUT_IMAGE" default="/docker/decompressed_image"/> -->
+  <arg name="INPUT_CAMERA_INFO" default="/head_camera/rgb/camera_info"/>
+  <arg name="IMAGE_TOPIC" default="$(arg INPUT_IMAGE)/local" if="$(arg USE_COMPRESSED)"/>
+  <arg name="IMAGE_TOPIC" default="$(arg INPUT_IMAGE)" unless="$(arg USE_COMPRESSED)"/>
+
+  <group if="$(arg USE_COMPRESSED)">
+    <node name="extract_rectangles_decompress" pkg="image_transport" type="republish"
+          args="compressed in:=$(arg INPUT_IMAGE) raw out:=$(arg IMAGE_TOPIC)"/>
+  </group>
+
+  <!-- START MANAGER -->
+  <node name="$(arg MANAGER)" pkg="nodelet" type="nodelet" args="manager"/>
+
+  <!-- ROBOT MASK -->
+  <!-- nodelet seems unstable... -->
+  <node name="robot_to_mask_image_left"
+        pkg="jsk_perception" type="robot_to_mask_image">
+    <remap from="~input/camera_info" to="$(arg INPUT_CAMERA_INFO)"/>
+    <remap from="~output" to="/robot/left/mask"/>
+    <rosparam>
+      self_see_links:
+        - name: LARM_JOINT5_Link
+        <!-- - name: LHAND_JOINT0_Link -->
+        <!-- - name: LHAND_JOINT1_Link -->
+        <!-- - name: LHAND_JOINT2_Link -->
+        <!-- - name: LHAND_JOINT3_Link -->
+      self_see_default_padding: 0.0
+    </rosparam>
+  </node>
+
+  <node name="robot_to_mask_image_right"
+        pkg="jsk_perception" type="robot_to_mask_image">
+    <remap from="~input/camera_info" to="$(arg INPUT_CAMERA_INFO)"/>
+    <remap from="~output" to="/robot/right/mask"/>
+    <rosparam>
+      self_see_links:
+        - name: RARM_JOINT5_Link
+        <!-- - name: RHAND_JOINT0_Link -->
+        <!-- - name: RHAND_JOINT1_Link -->
+        <!-- - name: RHAND_JOINT2_Link -->
+        <!-- - name: RHAND_JOINT3_Link -->
+      self_see_default_padding: 0.0
+    </rosparam>
+  </node>
+
+  <!-- wait for: https://github.com/jsk-ros-pkg/jsk_recognition/pull/2726 -->
+  <node name="invert_lmask"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_perception/ApplyMaskImage $(arg MANAGER)">
+    <remap from="~input" to="$(arg IMAGE_TOPIC)" />
+    <remap from="~input/mask" to="/robot/left/mask" />
+    <remap from="~output/mask" to="/robot/left/mask_inverted" />
+    <rosparam>
+      negative: true
+      clip: false
+    </rosparam>
+  </node>
+
+  <node name="invert_rmask"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_perception/ApplyMaskImage $(arg MANAGER)">
+    <remap from="~input" to="$(arg IMAGE_TOPIC)" />
+    <remap from="~input/mask" to="/robot/right/mask" />
+    <remap from="~output/mask" to="/robot/right/mask_inverted" />
+    <rosparam>
+      negative: true
+      clip: false
+    </rosparam>
+  </node>
+
+  <!-- OBJECT MASK -->
+  <node name="table_cards_point_indices"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl_utils/ClusterPointIndicesToPointIndices $(arg MANAGER)">
+    <remap from="~input" to="/docker/detic_segmentor/output/card/table/indices"/>
+    <remap from="~output" to="/robot/card/indices"/>
+    <rosparam>
+      index: 0
+    </rosparam>
+  </node>
+
+  <node name="table_cards_to_mask_image"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl_utils/PointIndicesToMaskImage $(arg MANAGER)">
+    <remap from="~input" to="/robot/card/indices"/>
+    <remap from="~input/image" to="$(arg IMAGE_TOPIC)"/>
+    <remap from="~output" to="/robot/card/mask"/>
+    <rosparam>
+      static_image_size: true
+      height: 480
+      width: 640
+    </rosparam>
+  </node>
+
+  <!-- RECTANGLES -->
+  <node name="robot_lmask_to_rect"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_perception/MaskImageToRect $(arg MANAGER)">
+    <remap from="~input" to="/robot/left/mask_inverted" />
+    <remap from="~output" to="/robot/left/rect" />
+  </node>
+
+  <node name="robot_rmask_to_rect"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_perception/MaskImageToRect $(arg MANAGER)">
+    <remap from="~input" to="/robot/right/mask_inverted" />
+    <remap from="~output" to="/robot/right/rect" />
+  </node>
+
+  <node name="table_cards_mask_to_rect"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_perception/MaskImageToRect $(arg MANAGER)">
+    <remap from="~input" to="/robot/card/mask" />
+    <remap from="~output" to="/robot/card/rect" />
+  </node>
+
+  <group if="$(arg CHECK_INTERSECTION)">
+    <node name="check_card_intersection"
+          pkg="hiro_card_demo" type="check_intersection.py"
+          args="/robot/card/rect /hand_object_detector/objects /intersection/card"/>
+
+    <node name="check_left_hand_intersection"
+          pkg="hiro_card_demo" type="check_intersection.py"
+          args="/robot/left/rect /hand_object_detector/hands /intersection/left"/>
+
+    <node name="check_right_hand_intersection"
+          pkg="hiro_card_demo" type="check_intersection.py"
+          args="/robot/right/rect /hand_object_detector/hands /intersection/right"/>
+  </group>
+
+</launch>
