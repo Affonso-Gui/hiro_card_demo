@@ -3,7 +3,7 @@
     <!-- ////////// -->
     <BehaviorTree ID="BehaviorTree">
         <RetryUntilSuccessful num_attempts="-1">
-            <SequenceStar>
+            <Fallback>
                 <Sequence name="PickAndPlace">
                     <Condition ID="HasGoalRequest"/>
                     <Action ID="PICK_AND_PLACE"/>
@@ -12,7 +12,7 @@
                     <Condition ID="HasClearRequest"/>
                     <Action ID="RETRIEVE"/>
                 </Sequence>
-            </SequenceStar>
+            </Fallback>
         </RetryUntilSuccessful>
     </BehaviorTree>
     <!-- ////////// -->

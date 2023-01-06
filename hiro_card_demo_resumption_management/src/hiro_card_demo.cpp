@@ -216,11 +216,11 @@ int main(int argc, char **argv)
   std::cout << "Writing log to file: " << log_filename << std::endl;
 
   try {
-    while( ros::ok() && (status == NodeStatus::IDLE || status == NodeStatus::RUNNING))
+    while( ros::ok() )
       {
         ros::spinOnce();
         status = tree->tickRoot();
-        ros::Duration sleep_time(0.005);
+        ros::Duration sleep_time(0.01);
         sleep_time.sleep();
       }
   }
