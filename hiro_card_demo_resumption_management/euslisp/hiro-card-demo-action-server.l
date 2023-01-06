@@ -9,11 +9,11 @@
 (defvar *resume-timeout* 2.0)
 (defvar *resume-motion-scale* 10.0)
 
-(setq time-scale 1.0)
+(setq time-scale 1.2)
 (setq *resume-motion-scale* (* *resume-motion-scale* time-scale))
 (setq roseus_resume:*resume-time-scale* 10.0)
 (setq roseus_resume:*resume-min-time* 1.0)
-(setq roseus_resume:*intersection-resume-wait-time* 2.0)
+(setq roseus_resume:*intersection-resume-wait-time* 1.0)
 
 (setq *epsilon-alist*
       (set-alist coordinates (list *coordinate-threshold* *coordinate-rot-threshold*)
@@ -46,17 +46,23 @@
   *clear-request*)
 
 (defun detect-execute-cb (server goal)
+  (set-green)
   (detect-pose 3000 :wait t)
   t)
 
 (defun pick-and-place-execute-cb (server goal)
+  (set-green)
   (let ((cards (mapcar #'(lambda (c) (apply #'fix-card-pos c)) *goal-request*)))
     (unwind-protect
-         (prog1 (apply #'_pick&place cards)
-           (detect-pose 3000 :wait t))
+         (handler-case (prog1 (apply #'_pick&place cards)
+                         (detect-pose 3000 :wait t))
+           (assertion-error (e)
+             (lisp::print-error-message e)
+             nil))
       (setq *goal-request* nil))))
 
 (defun retrieve-execute-cb (server goal)
+  (set-green)
   (unwind-protect (retrieve-all-cards)
     (setq *clear-request* nil)))
 
@@ -116,7 +122,7 @@
 ;; logging
 ;; (setq *cc-debug* t)
 ;; (ros::set-logger-level ros::*roserror*)
-;; (log:set-logger-level :error)
+(log:set-logger-level :debug)
 
 ;; spin
 ;; (roseus_bt:spin)

@@ -274,13 +274,13 @@
 
   (send *ri* :hand-effort :lhand #f(3 3 50 10))
   (send-hand :lhand #f(-38.9986 -90.4 -45 92.2) 750)
-  (sleep-time-scale 1500)
+  (sleep-time-scale 1000)
   (send-hand-width :rhand 2 :time 500)
   (send *ri* :hand-effort :rhand 3)
 
   ;; move away
   (send *hironxjsk* :angle-vector #f(2.89197 -8.10794 -129.146 -54.3726 29.6771 -38.7213 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))
-  (send-robot 2000)
+  (send-robot 1500)
   (grasp-deck)
   (send *ri* :hand-effort :rhand 100)
   (reset-pose 2000 :wait t))

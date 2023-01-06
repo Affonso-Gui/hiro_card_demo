@@ -28,7 +28,8 @@
  "/intersection/left" :larm (*ri* . groupname))
 
 (send *ri* :start-card-monitoring
-      :rarm "/docker/detic_segmentor/output/raw/centroid")
+      :rarm "/docker/detic_segmentor/output/raw/centroid"
+      :collision-model (make-cube 100.0 100.0 50.0))
 
 
 (defun set-alist (k v alist &key (key) (test 'eq))
