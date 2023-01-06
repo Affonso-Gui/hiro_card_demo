@@ -12,8 +12,8 @@
 (setq time-scale 1.0)
 (setq *resume-motion-scale* (* *resume-motion-scale* time-scale))
 (setq roseus_resume:*resume-time-scale* 10.0)
-(setq roseus_resume:*resume-min-time* 5.0)
-(setq roseus_resume:*intersection-resume-wait-time* 0.5)
+(setq roseus_resume:*resume-min-time* 1.0)
+(setq roseus_resume:*intersection-resume-wait-time* 2.0)
 
 (setq *epsilon-alist*
       (set-alist coordinates (list *coordinate-threshold* *coordinate-rot-threshold*)
@@ -23,6 +23,12 @@
 ;; interrupt / resume callbacks
 (defun preempt-motion (server goal)
   (set-red)
+  (ros::ros-warn ";; Grasping Card: ~A" (send *ri* :get-robot-state :rarm-card))
+  (ros::create-timer (/ roseus_resume:*intersection-resume-wait-time* 2.0)
+    #'(lambda (event)
+        (ros::ros-info ";; Reseting card grasping state")
+        (send *ri* :reset-card-grasping-state))
+    :groupname (*ri* . groupname) :oneshot t)
   (signals roseus_resume:on-interruption :status roseus_resume:*current-status*))
 
 (defun resume-motion (server goal)

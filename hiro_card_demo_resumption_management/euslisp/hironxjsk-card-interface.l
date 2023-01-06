@@ -15,7 +15,6 @@
     (send self :reset-card-grasping-state)
     self)
   (:hironxjsk-card-grasping-state-callback (arm collision-model msg)
-   (setq *msg* msg)
     (let* ((av-save (send robot :angle-vector))
            (endc (progn (send robot :angle-vector (send self :state :potentio-vector))
                         (send robot arm :end-coords)))
