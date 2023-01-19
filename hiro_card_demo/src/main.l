@@ -239,6 +239,19 @@
     (send *hironxjsk* :angle-vector v3)
     (send-robot 1500 :wait t))
 
+  (when (send *ri* :simulation-modep)
+    (let* ((a :rarm)
+           (tint (get-tint-mark (get-tint (send *hironxjsk* a :angle-vector)))))
+      ;; check in *angle-vector-tint*
+      (when (and (not tint) (assoc a *angle-vector-tint*))
+        (setq tint (get-tint-mark *angle-vector-tint*)))
+      (when tint
+        (if (assoc a *gripper-tint*)
+            ;; don't use setf to avoid having to clone in motion-checkpoint
+            (setq *gripper-tint* (acons a tint (remove a *gripper-tint* :key #'car)))
+            ;; add to list
+            (setq *gripper-tint* (acons a tint *gripper-tint*))))))
+
   ;; drag to border
   (log:log-info "DRAG")
   (send *hironxjsk* :angle-vector #f(-14.0598 -16.1336 -83.7391 0.662583 12.4256 38.7536 36.3125 -15.3647 -68.4375 122.106 34.4121 13.9225 -25.0 5.0 60.0))
@@ -283,6 +296,10 @@
   (sleep-time-scale 1000)
   (send-hand-width :rhand 2 :time 500)
   (send *ri* :hand-effort :rhand 3)
+
+  (when (send *ri* :simulation-modep)
+    (setq *gripper-tint* (remove :rarm *gripper-tint* :key #'car)))
+
 
   ;; move away
   (send *hironxjsk* :angle-vector #f(2.89197 -8.10794 -129.146 -54.3726 29.6771 -38.7213 13.4646 1.82886 -88.6255 119.881 13.3115 3.92436 0.0 5.0 60.0))

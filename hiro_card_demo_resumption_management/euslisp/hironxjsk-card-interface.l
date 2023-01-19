@@ -35,6 +35,7 @@
           (when (= (user::collision-check lk collision-model) 1)
             (send self :set-robot-state1 key t)
             (when (boundp '*hironxjsk*)
+              ;; TODO: reset angle vector tint after setting the gripper tint???
               (let ((tint (get-tint-mark (get-tint (send *hironxjsk* arm :angle-vector)))))
                 ;; check in *angle-vector-tint*
                 (when (and (not tint) (assoc arm *angle-vector-tint*))
