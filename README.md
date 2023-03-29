@@ -24,7 +24,6 @@ Make sure to always calibrate from the power-off pose, and try to recalibrate wh
 #### Run from the Scratch web interface:
 1. `roslaunch hiro_card_demo start.launch`
 1. Open http://scratch3-ros.jsk.imi.i.u-tokyo.ac.jp
-1. Add the ROS extension from the bottom left button on the screen and input the master URI (*localhost* or *hirovision*)
 1. From the File menu load [card_demo_interface.sb3](https://github.com/Affonso-Gui/hiro_card_demo/blob/master/src/card_demo_interface.sb3)
 1. Place and flip the cards as wanted and press Go to move the robot
 
