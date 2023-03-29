@@ -40,6 +40,7 @@
   <exec_depend>roseus_bt</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>actionlib_msgs</exec_depend>
+  <exec_depend>rosbridge_server</exec_depend>
 
   <export>
   </export>
